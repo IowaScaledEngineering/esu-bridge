@@ -262,18 +262,96 @@ class mrbeeSimple(object):
 
 
   def sendpkt(self, dest, data, src=None):
-    if src == None:
-      src = self.addr
-    s = ":%02X->%02X"%(src, dest)
-    for d in data:
-      if type(d) == str:
-        d=ord(d)
-      s+=" %02X"%(d&0xff)
-    s+=";\r"
-    self.log(0, '>>>'+s)
-    self.serial.write(s)
+     if src == None:
+        src = self.addr
+
+     txPktLen = 5 + len(data) + 5  # 5 MRBus overhead, 5 XBee, and the data
+
+     txBuffer = [ ]
+     txBuffer.append(0x7E)       # 0 - Start 
+     txBuffer.append(0x00)       # 1 - Len MSB
+     txBuffer.append(txPktLen)   # 2 - Len LSB
+     txBuffer.append(0x01)       # 3 - API being called - transmit by 16 bit address
+     txBuffer.append(0x00)       # 4 - Frame identifier
+     txBuffer.append(0xFF)       # 5 - MSB of dest address - broadcast 0xFFFF
+     txBuffer.append(0xFF)       # 6 - LSB of dest address - broadcast 0xFFFF
+     txBuffer.append(0x00)       # 7 - Transmit Options
+     
+     txBuffer.append(dest)           # 8 / 0 - Destination
+     txBuffer.append(src)            # 9 / 1 - Source
+     txBuffer.append(len(data) + 5)  # 10/ 2 - Length
+     txBuffer.append(0)              # 11/ 3 - CRC High
+     txBuffer.append(0)              # 12/ 4 - CRC Low
+
+#     print "MRBee transmitting from %02X to %02X" % (src, dest)
+
+     for b in data:
+        txBuffer.append(int(b) & 0xFF)
 
 
+     crc = mrbusCRC16Calculate(txBuffer[8:])
+     txBuffer[11] = 0xFF & (crc >> 8)
+     txBuffer[12] = 0xFF & crc
+
+     xbeeChecksum = 0
+     for i in range(3, len(txBuffer)):
+        xbeeChecksum = xbeeChecksum + txBuffer[i]
+     xbeeChecksum = (0xFF - xbeeChecksum) & 0xFF;
+     txBuffer.append(xbeeChecksum)
+     
+     txBufferEscaped = [ txBuffer[0] ]
+     
+     escapedChars = frozenset([0x7E, 0x7D, 0x11, 0x13])
+
+     for i in range(1, len(txBuffer)):
+        if txBuffer[i] in escapedChars:
+           txBufferEscaped.append(0x7D)
+           txBufferEscaped.append(txBuffer[i] ^ 0x20)
+        else:
+           txBufferEscaped.append(txBuffer[i])
+
+     self.serial.write(txBufferEscaped)     
+     
+def mrbusCRC16Calculate(data):
+   mrbusPktLen = data[2]
+   crc = 0
+   
+   for i in range(0, mrbusPktLen):
+      if i == 3 or i == 4:
+         a = 0   
+      else:
+         a = data[i]
+      crc = mrbusCRC16Update(crc, a)
+      
+   return crc
+
+def mrbusCRC16Update(crc, a):
+   MRBus_CRC16_HighTable = [ 0x00, 0xA0, 0xE0, 0x40, 0x60, 0xC0, 0x80, 0x20, 0xC0, 0x60, 0x20, 0x80, 0xA0, 0x00, 0x40, 0xE0 ]
+   MRBus_CRC16_LowTable =  [ 0x00, 0x01, 0x03, 0x02, 0x07, 0x06, 0x04, 0x05, 0x0E, 0x0F, 0x0D, 0x0C, 0x09, 0x08, 0x0A, 0x0B ]
+   crc16_h = (crc>>8) & 0xFF
+   crc16_l = crc & 0xFF
+   
+   i = 0
+   
+   while i < 2:
+      if i != 0:
+         w = ((crc16_h << 4) & 0xF0) | ((crc16_h >> 4) & 0x0F)
+         t = (w ^ a) & 0x0F
+      else:
+         t = (crc16_h ^ a) & 0xF0
+         t = ((t << 4) & 0xF0) | ((t >> 4) & 0x0F)
+         
+      crc16_h = (crc16_h << 4) & 0xFF
+      crc16_h = crc16_h | (crc16_l >> 4)
+      crc16_l = (crc16_l << 4) & 0xFF
+      
+      crc16_h = crc16_h ^ MRBus_CRC16_HighTable[t]
+      crc16_l = crc16_l ^ MRBus_CRC16_LowTable[t]
+      
+      i = i + 1
+      
+   return (crc16_h<<8) | crc16_l
+      
 class mrbus(object):
   def __init__(self, port, addr=None, logfile=None, logall=False, extra=False, busType='mrbus'):
     if type(port)==str:
