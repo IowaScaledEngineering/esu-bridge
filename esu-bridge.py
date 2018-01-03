@@ -1,15 +1,25 @@
 #!/usr/bin/python
 
-import esu
-import mrbus
 import sys
 import time
 import socket
+import argparse
+
+
+import esu
+import mrbus
 import MRBusThrottle
 import netUtils
 
 statusInterval = 2
 baseAddress = 0xD4
+
+ap = argparse.ArgumentParser()
+ap.add_argument("-s", "--serial", help="specify serial device for XBee radio", type=str)
+ap.add_argument("-e", "--esuip", help="specify IP address of ESU CabControl command station", type=str)
+args = ap.parse_args()
+
+
 
 # Big loop - runs as long as the program is alive
 while 1:
@@ -19,8 +29,13 @@ while 1:
       try:
          throttles = { }
          print "Looking for ESU CabControl command station"
-         esuIP = ""
-         esuIP = netUtils.esuFind()
+
+         esuIP = None
+         if args.esuip is not None:
+            esuIP = args.esuip
+         else:
+            esuIP = netUtils.esuFind()
+
          if esuIP is None:
             print "No command station found, waiting and retrying..."
             sleep(1)
@@ -29,7 +44,13 @@ while 1:
          cmdStn = esu.ESUConnection()
          cmdStn.connect(esuIP)
  
-         mrbee = mrbus.mrbus("/dev/ttyUSB2", baseAddress, logall=True, logfile=sys.stdout, busType='mrbee')
+         xbeePort = None
+         if args.serial is not None:
+            xbeePort = args.serial
+         else:
+            xbeePort = "/dev/ttyUSB0"
+
+         mrbee = mrbus.mrbus(xbeePort, baseAddress, logall=True, logfile=sys.stdout, busType='mrbee')
          break
 
       except(KeyboardInterrupt):
