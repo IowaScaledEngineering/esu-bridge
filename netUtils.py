@@ -1,5 +1,14 @@
 from time import time
 import socket
+import serial.tools.list_ports
+
+def findXbeePort():
+   ports = list(serial.tools.list_ports.grep("ttyUSB"))
+   for p in ports:
+      if "FTDI" == p.manufacturer:
+         return p.device
+   return None
+
 
 def get_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
