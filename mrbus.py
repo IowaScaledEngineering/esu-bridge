@@ -94,6 +94,8 @@ class mrbusSimple(object):
     self.addr=addr
 #    self.buf=deque()
 
+  def disconnect(self):
+     self.serial.close()
 
   def log(self, error, msg):
     if not self.logfile:
@@ -192,6 +194,9 @@ class mrbeeSimple(object):
     else:
       s="  log:"
     self.logfile.write(s+repr(msg)+'\n')
+
+  def disconnect(self):
+     self.serial.close()
 
   def getpkt(self):
 
@@ -353,6 +358,9 @@ def mrbusCRC16Update(crc, a):
    return (crc16_h<<8) | crc16_l
       
 class mrbus(object):
+  def disconnect(self):
+     self.mrbs.disconnect()
+
   def __init__(self, port, addr=None, logfile=None, logall=False, extra=False, busType='mrbus'):
     if type(port)==str:
       port = serial.Serial(port, 115200, rtscts=True)
