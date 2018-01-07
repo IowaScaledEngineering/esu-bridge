@@ -87,7 +87,7 @@ while 1:
 
          if esuIP is None:
             print "No command station found, waiting and retrying..."
-            sleep(5)
+            time.sleep(2)
             continue
 
 
@@ -110,7 +110,7 @@ while 1:
          if xbeePort is None:
             print "No XBee found, waiting and retrying..."
             cmdStn.disconnect()
-            sleep(5)
+            time.sleep(2)
             continue
          else:
             print "Trying to start XBee / MRBus on port %s" % xbeePort
