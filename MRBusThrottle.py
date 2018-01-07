@@ -44,13 +44,15 @@ class MRBusThrottle:
          self.locObjID = cmdStn.esuLocomotiveObjectGet(addr)
          self.locAddr = addr
          print "Acquiring new locomotive %d - objID = %d" % (self.locAddr, self.locObjID)
-         
-      if estop != self.locEStop and estop != 1:
-         esuLocomotiveEmergencyStop(self.locObjID)
+      
+      # Only send ESTOP if we just moved into that state
+      if estop != self.locEStop and estop == 1:
+         print "Sending ESTOP locomotive %d" % (self.locAddr)
+         cmdStn.esuLocomotiveEmergencyStop(self.locObjID)
 
       self.locEStop = estop
 
-      if speed != self.locSpeed or direction != self.locDirection:
+      if self.locEStop != 1 and (speed != self.locSpeed or direction != self.locDirection):
          print "Updating speed/dir to %d/%d for locomotive %d" % (speed, direction, self.locAddr)
          cmdStn.esuLocomotiveSpeedSet(self.locObjID, speed, direction)
 

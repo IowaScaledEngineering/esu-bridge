@@ -166,7 +166,7 @@ class mrbeeSimple(object):
     self.rxProcessing = 0
 
     if type(port)==str:
-      port = serial.Serial(port, 115200, timeout=.1, rtscts=True)
+      port = serial.Serial(port, 115200, timeout=.1, rtscts=True, stopbits=serial.STOPBITS_TWO)
 
     self.serial = port
 
@@ -270,7 +270,7 @@ class mrbeeSimple(object):
      if src == None:
         src = self.addr
 
-     txPktLen = 5 + len(data) + 5  # 5 MRBus overhead, 5 XBee, and the data
+     txPktLen = 10 + len(data)   # 5 MRBus overhead, 5 XBee, and the data
 
      txBuffer = [ ]
      txBuffer.append(0x7E)       # 0 - Start 
@@ -293,17 +293,16 @@ class mrbeeSimple(object):
      for b in data:
         txBuffer.append(int(b) & 0xFF)
 
-
      crc = mrbusCRC16Calculate(txBuffer[8:])
-     txBuffer[11] = 0xFF & (crc >> 8)
-     txBuffer[12] = 0xFF & crc
+     txBuffer[11] = 0xFF & crc
+     txBuffer[12] = 0xFF & (crc >> 8)
 
      xbeeChecksum = 0
      for i in range(3, len(txBuffer)):
-        xbeeChecksum = xbeeChecksum + txBuffer[i]
+        xbeeChecksum = (xbeeChecksum + txBuffer[i]) & 0xFF
      xbeeChecksum = (0xFF - xbeeChecksum) & 0xFF;
      txBuffer.append(xbeeChecksum)
-     
+
      txBufferEscaped = [ txBuffer[0] ]
      
      escapedChars = frozenset([0x7E, 0x7D, 0x11, 0x13])
@@ -315,6 +314,12 @@ class mrbeeSimple(object):
         else:
            txBufferEscaped.append(txBuffer[i])
 
+#     print "txBufferEscaped is %d bytes" % (len(txBufferEscaped))
+#     pkt = ""
+#     for i in txBufferEscaped:
+#        pkt = pkt + "%02x " % (i)
+#     print pkt
+     
      self.serial.write(txBufferEscaped)     
      
 def mrbusCRC16Calculate(data):
@@ -323,12 +328,13 @@ def mrbusCRC16Calculate(data):
    
    for i in range(0, mrbusPktLen):
       if i == 3 or i == 4:
-         a = 0   
+         continue
       else:
          a = data[i]
       crc = mrbusCRC16Update(crc, a)
       
    return crc
+
 
 def mrbusCRC16Update(crc, a):
    MRBus_CRC16_HighTable = [ 0x00, 0xA0, 0xE0, 0x40, 0x60, 0xC0, 0x80, 0x20, 0xC0, 0x60, 0x20, 0x80, 0xA0, 0x00, 0x40, 0xE0 ]
@@ -363,7 +369,10 @@ class mrbus(object):
 
   def __init__(self, port, addr=None, logfile=None, logall=False, extra=False, busType='mrbus'):
     if type(port)==str:
-      port = serial.Serial(port, 115200, rtscts=True)
+      if busType == 'mrbus':
+         port = serial.Serial(port, 115200, rtscts=True)
+      elif busType == 'mrbee':
+         port = serial.Serial(port, 115200, rtscts=True, stopbits=serial.STOPBITS_TWO)
 
     if busType == 'mrbus':
        self.mrbs = mrbusSimple(port, addr, logfile, logall, extra)
