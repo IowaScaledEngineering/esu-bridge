@@ -40,7 +40,7 @@ while 1:
          try:
             baseOffset = parser.getint("configuration", "baseAddress")
             baseAddress = 0xD0
-            if (baseOffset >= 0 and baseOffset < 16):
+            if (baseOffset >= 0 and baseOffset < 32):
                baseAddress += baseOffset
                print "Setting base address to %d  (MRBus address 0x%02X)" % (baseOffset, baseAddress)
          except:
