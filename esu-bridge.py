@@ -12,6 +12,8 @@ import mrbus
 import MRBusThrottle
 import netUtils
 
+import datetime
+
 statusInterval = 1
 searchDelay = 0.03
 baseAddress = 0xD0
@@ -27,6 +29,10 @@ args = ap.parse_args()
 cmdStn = None
 mrbee = None
 gitver = [ 0x00, 0x00, 0x00 ]
+
+def getMillis():
+	return datetime.now().microsecond / 1000
+
 
 # Big loop - runs as long as the program is alive
 while 1:
@@ -77,30 +83,11 @@ while 1:
       try:
          throttles = { }
          
-         print "Looking for ESU CabControl command station"
-
-         esuIP = None
-         if args.esuip is not None:
-            esuIP = args.esuip
-         else:
-            esuIP = netUtils.esuFind(searchDelay)
-
-         if esuIP is None:
-            print "No command station found, waiting and retrying..."
-            time.sleep(2)
-            continue
-
-
-         if cmdStn is not None:
-            cmdStn.disconnect()
-
-         print "Trying ESU command station connection"
-      
-         cmdStn = esu.ESUConnection()
-         cmdStn.connect(esuIP)
-         
          print "Looking for XBee / MRBus interface"
- 
+
+         if mrbee is not None:
+            mrbee.disconnect()
+
          xbeePort = None
          if args.serial is not None:
             xbeePort = args.serial
@@ -115,27 +102,62 @@ while 1:
          else:
             print "Trying to start XBee / MRBus on port %s" % xbeePort
 
-         if mrbee is not None:
-            mrbee.disconnect()
-
-
-
          mrbee = mrbus.mrbus(xbeePort, baseAddress, logall=True, logfile=sys.stdout, busType='mrbee')
+
+         mrbee.setXbeeLED('D9', True);
+
+         print "Looking for ESU CabControl command station"
+
+         esuIP = None
+         if args.esuip is not None:
+            esuIP = args.esuip
+         else:
+            esuIP = netUtils.esuFind(searchDelay)
+
+         if esuIP is None:
+            print "No command station found, waiting and retrying..."
+            time.sleep(2)
+            continue
+
+         if cmdStn is not None:
+            cmdStn.disconnect()
+
+         print "Trying ESU command station connection"
+      
+         cmdStn = esu.ESUConnection()
+         cmdStn.connect(esuIP)
+
+         mrbee.setXbeeLED('D8', True);
+
          break
 
       except(KeyboardInterrupt):
          cmdStn.disconnect()
          mrbee.disconnect()
          sys.exit()
-      except:
-         continue
+      except Exception as e:
+      	print e
 
 
    lastStatusTime = time.time()
+   lastErrorTime = getMillis()
+   errorLightOn = False
+
+   lastPktTime = getMillis()
+   pktLightOn = False
+
 
    # Main Run Loop - runs until something weird happens
    while 1:
       try:
+         if lastErrorTime > getMillis() + 500 and errorLightOn:
+            errorLightOn = False
+            mrbee.setXbeeLED('D6', errorLightOn)
+
+         if lastPktTime > getMillis() + 500 and pktLightOn:
+            pktLightOn = False
+            mrbee.setXbeeLED('D7', pktLightOn)
+
          pkt = mrbee.getpkt()
 
          if time.time() > lastStatusTime + statusInterval:
@@ -147,6 +169,11 @@ while 1:
          if pkt is None:
             continue
 
+         if pkt.src == baseAddress:
+            errorLightOn = True
+            lastErrorTime = getMillis()
+            mrbee.setXbeeLED('D6', errorLightOn)
+
          # Bypass anything that doesn't look like a throttle packet
          if pkt.cmd != 0x53 or len(pkt.data) != 10 or baseAddress != pkt.dest:
             continue
@@ -155,6 +182,11 @@ while 1:
             throttles[pkt.src] = MRBusThrottle.MRBusThrottle()
       
          throttles[pkt.src].update(cmdStn, pkt)
+
+         if pkt.src == baseAddress:
+            pktLightOn = True
+            lastPktTime = getMillis()
+            mrbee.setXbeeLED('D7', errorLightOn)
 
       except (KeyboardInterrupt):
          cmdStn.disconnect()

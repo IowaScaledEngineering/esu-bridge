@@ -181,8 +181,12 @@ class mrbeeSimple(object):
     self.logfile=logfile
     self.logall=logall
     self.log(0, "instantiated mrbeeSimple from %s" % port.name)
-
     self.addr=addr
+    
+    self.setLED('D6', False)
+    self.setLED('D7', False)
+    self.setLED('D8', False)
+    self.setLED('D9', False)
 
   def log(self, error, msg):
     if not self.logfile:
@@ -258,13 +262,57 @@ class mrbeeSimple(object):
                 self.rxExcapeNext = 0
                 self.rxProcessing = 0
 
-#             for i in range(0, self.rxExpectedPktLen-1):
-#                print "Byte %02d: 0x%02X" % (i-pktDataOffset, self.rxBuffer[i])
+#                for i in range(0, self.rxExpectedPktLen-1):
+#                   print "Byte %02d: 0x%02X" % (i-pktDataOffset, self.rxBuffer[i])
              
              return packet(self.rxBuffer[pktDataOffset + 0], self.rxBuffer[pktDataOffset + 1], self.rxBuffer[pktDataOffset + 5], self.rxBuffer[(pktDataOffset + 6):])
 
     return None
 
+  def setLED(self, ledRefdes, ledState):
+#     if ledState:
+#        state = "On"
+#     else:
+#        state = "Off"
+#     self.log(0, "mrbee - setting XBee LED %d to %s" % (ledNum, state))
+
+     pins = {'D6':2, 'D7':3, 'D8':1, 'D9':0}
+
+     if ledRefdes not in pins:
+       return
+
+     txBuffer = [ ]
+     txBuffer.append(0x7E)          # 0 - Start 
+     txBuffer.append(0x00)          # 1 - Len MSB
+     txBuffer.append(0x05)          # 2 - Len LSB - five bytes
+     txBuffer.append(0x08)          # 3 - API being called - AT CMD
+     txBuffer.append(0x00)          # 4 - Frame identifier
+     txBuffer.append(0x44)          # 5 - 'D'
+     txBuffer.append(0x30 + pins[ledRefdes]) # 6 - '0'-'4'
+     if ledState is True:
+        txBuffer.append(5)       # 8 - '5' for on
+     else:
+        txBuffer.append(4)       # 8 - '4' for off
+     
+     xbeeChecksum = 0
+     for i in range(3, len(txBuffer)):
+        xbeeChecksum = (xbeeChecksum + txBuffer[i]) & 0xFF
+     xbeeChecksum = (0xFF - xbeeChecksum) & 0xFF;
+     txBuffer.append(xbeeChecksum)     
+
+     txBufferEscaped = [ txBuffer[0] ]
+     escapedChars = frozenset([0x7E, 0x7D, 0x11, 0x13])
+
+     for i in range(1, len(txBuffer)):
+        if txBuffer[i] in escapedChars:
+           txBufferEscaped.append(0x7D)
+           txBufferEscaped.append(txBuffer[i] ^ 0x20)
+        else:
+           txBufferEscaped.append(txBuffer[i])
+
+     self.serial.write(txBufferEscaped)  
+     return   
+  
 
   def sendpkt(self, dest, data, src=None):
      if src == None:
@@ -404,6 +452,9 @@ class mrbus(object):
 
     self.mrbs.log(0, "using address %d" % addr)
 
+  def setXbeeLED(self, ledRefdes, ledState):
+    if self.busType == 'mrbee':
+      self.mrbs.setLED(ledRefdes, ledState)
 
   def sendpkt(self, addr, data, src=None):
     self.mrbs.sendpkt(addr, data, src)
