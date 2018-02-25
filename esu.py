@@ -29,6 +29,10 @@ class ESUConnection:
       except:
          print "ESU command station connection failed"
       
+   def disconnent(self):
+      print "Disconnecting"
+      conn.close()
+      
    def esuTXRX(self, cmdStr, parseRE=None, resultKey=''):
       self.conn.send(cmdStr)
       resp = self.conn.recv(ESU_RCV_SZ)
