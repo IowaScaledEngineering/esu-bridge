@@ -66,13 +66,7 @@ class ESUConnection:
       result = self.esuTXRX(cmdStr, self.RElocAdd)
       return int(result[0]['objID'])
 
-   def esuLocomotiveAcquire(self, objID):
-      objID = int(objID)
-      cmdStr = "request (%d, control, force)" % (objID)
-      self.esuTXRX(cmdStr)
-
-          
-   def esuLocomotiveObjectGet(self, locoNum):
+   def locomotiveObjectGet(self, locoNum, srcAddr):
       cmdStr = "queryObjects(10,addr)"
       locoList = self.esuTXRX(cmdStr, self.REglobalList, 'locAddr')
       
@@ -88,14 +82,14 @@ class ESUConnection:
          print "Added locomotive %s at object %d" % (locAddr, objID)
          return objID
          
-   def esuLocomotiveEmergencyStop(self, objID):
+   def locomotiveEmergencyStop(self, objID):
       objID = int(objID)
       cmdStr = "set (%d, stop)" % (objID)
       self.esuTXRX(cmdStr)
       
 
    # For the purposes of this function, direction of 0=forward, 1=reverse
-   def esuLocomotiveSpeedSet(self, objID, speed, direction=0):
+   def locomotiveSpeedSet(self, objID, speed, direction=0):
       objID = int(objID)
       speed = int(speed)
       direction = int(direction)
@@ -112,7 +106,7 @@ class ESUConnection:
       
       print "Set speed on locomotive ID %d to %d, %s" % (objID, speed, ["FWD","REV"][direction])
    
-   def esuLocomotiveFunctionSet(self, objID, funcNum, funcVal):
+   def locomotiveFunctionSet(self, objID, funcNum, funcVal):
       objID = int(objID)
       funcNum = int(funcNum)
       funcVal = int(funcVal)
@@ -120,7 +114,7 @@ class ESUConnection:
       cmdStr = "set(%d, func[%d,%d])" % (objID, funcNum, funcVal)
       self.esuTXRX(cmdStr)   
 
-   def esuLocomotiveFunctionDictSet(self, objID, funcDict):
+   def locomotiveFunctionDictSet(self, objID, funcDict):
       objID = int(objID)
       
       funcStr = ""
@@ -134,6 +128,8 @@ class ESUConnection:
       cmdStr = "set(%d%s])" % (objID, funcStr)
       self.esuTXRX(cmdStr)   
 
+   def update(self):
+      return
 
    def disconnect(self):
       self.conn.close()

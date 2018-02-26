@@ -88,8 +88,11 @@ class WiThrottleConnection:
 
    def disconnect(self):
       for addr,connection in self.activeThrottles.iteritems():
+         self.rxtx(addr, "Q\n")
+         time.sleep(0.1)
          connection.close()
-      self.conn.close()
+      self.activeThrottles = { }
+      self.lastUpdates = { }
       print "Disconnected"
 
    

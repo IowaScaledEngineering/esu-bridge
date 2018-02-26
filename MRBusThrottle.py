@@ -6,7 +6,7 @@ import time
 class MRBusThrottle:
 
    
-   def __init__(self):
+   def __init__(self, addr):
       self.locAddr = 0
       self.locAddrShort = 0
       self.locSpeed = 0
@@ -14,6 +14,7 @@ class MRBusThrottle:
       self.locObjID = 0
       self.locEStop = 0
       self.locFunctions = [ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 ]
+      self.throttleAddr = addr
       return
    
    def update(self, cmdStn, pkt):
@@ -41,20 +42,20 @@ class MRBusThrottle:
          direction = 1
 
       if (addr != self.locAddr):
-         self.locObjID = cmdStn.esuLocomotiveObjectGet(addr)
+         self.locObjID = cmdStn.locomotiveObjectGet(addr, self.throttleAddr)
          self.locAddr = addr
-         print "Acquiring new locomotive %d - objID = %d" % (self.locAddr, self.locObjID)
+         print "Acquiring new locomotive %d - objID = %s" % (self.locAddr, self.locObjID)
       
       # Only send ESTOP if we just moved into that state
       if estop != self.locEStop and estop == 1:
          print "Sending ESTOP locomotive %d" % (self.locAddr)
-         cmdStn.esuLocomotiveEmergencyStop(self.locObjID)
+         cmdStn.locomotiveEmergencyStop(self.locObjID)
 
       self.locEStop = estop
 
       if self.locEStop != 1 and (speed != self.locSpeed or direction != self.locDirection):
          print "Updating speed/dir to %d/%d for locomotive %d" % (speed, direction, self.locAddr)
-         cmdStn.esuLocomotiveSpeedSet(self.locObjID, speed, direction)
+         cmdStn.locomotiveSpeedSet(self.locObjID, speed, direction)
 
       self.locSpeed = speed
       self.locDirection = direction
@@ -82,7 +83,7 @@ class MRBusThrottle:
       for i in range(28):
          if functions[i] != self.locFunctions[i]:
             print "Sending update for function %d to state %d" % (i, functions[i])
-            cmdStn.esuLocomotiveFunctionSet(self.locObjID, i, functions[i])
+            cmdStn.locomotiveFunctionSet(self.locObjID, i, functions[i])
 
       self.locFunctions = functions
       

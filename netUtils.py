@@ -31,15 +31,16 @@ def testPort(ip, port, timeout=0.01):
         except(socket.timeout,socket.error):
             return 0
 
-def esuFind(timeout=0.01):
+def serverFind(timeout, port):
    defaultIP = get_ip()
    o1,o2,o3,o4 = defaultIP.split('.')
    print "Starting Scan"
    for i in range(0,254):
       scanIP = "%s.%s.%s.%d" % (o1, o2, o3, i)
-      result = testPort(scanIP, 15471, timeout)
+      result = testPort(scanIP, port, timeout)
       if result:
-         print "IP %s has ESU port open" % (scanIP)
+         print "IP %s has port %d open" % (scanIP, port)
          return scanIP
    return None
+
 

@@ -200,7 +200,11 @@ class mrbeeSimple(object):
     self.logfile.write(s+repr(msg)+'\n')
 
   def disconnect(self):
-     self.serial.close()
+    self.setLED('D6', False)
+    self.setLED('D7', False)
+    self.setLED('D8', False)
+    self.setLED('D9', False)  
+    self.serial.close()
 
   def getpkt(self):
 
