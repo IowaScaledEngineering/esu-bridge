@@ -1,4 +1,38 @@
-#!/usr/bin/python
+# *************************************************************************
+# Title:    ProtoThrottle bridge for ESU CabControl and JMRI WiThrottle
+# Authors:  Michael D. Petersen <railfan@drgw.net>
+#           Nathan D. Holmes <maverick@drgw.net>
+# File:     esu-bridge.py
+# License:  GNU General Public License v3
+#
+# LICENSE:
+#   Copyright (C) 2018 Michael Petersen & Nathan Holmes
+#    
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 3 of the License, or
+#   any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+#
+# DESCRIPTION:
+#   This is the main application that allows the ProtoThrottle ( http://www.protothrottle.com/ )
+#   to communicate with ESU CabControl command stations or JMRI WiThrottle servers
+#   (or compatible, such as the Digitrax LNWI).
+#
+#   While this is intended to be used on a Raspberry Pi as an embedded system,
+#   it will work just fine on a desktop.  The biggest thing it needs is the 
+#   "protothrottle.ini" file, of which the default configuration (with usage comments)
+#   is included in the Github repository.  
+#
+#   See test-start-esubridge.sh in the repo to see an example of how to invoke 
+#   this sanely.
+#
+#*************************************************************************
+
 
 import sys
 import time
@@ -18,7 +52,6 @@ import datetime
 statusInterval = 1
 searchDelay = 0.03
 baseAddress = 0xD0
-
 
 ap = argparse.ArgumentParser()
 ap.add_argument("-s", "--serial", help="specify serial device for XBee radio", type=str)
@@ -213,8 +246,10 @@ while 1:
          break
 
       except(KeyboardInterrupt):
-         cmdStn.disconnect()
-         mrbee.disconnect()
+         if cmdStn is not None:
+            cmdStn.disconnect()
+         if mrbee is not None:
+            mrbee.disconnect()
          sys.exit()
       except Exception as e:
          print "Connection phase exception!!!"

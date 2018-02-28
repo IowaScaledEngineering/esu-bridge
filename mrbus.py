@@ -1,3 +1,33 @@
+# *************************************************************************
+# Title:    Interface Driver for MRBus wired or wireless connections
+# Authors:  Mark Finn <mark@mfinn.net>
+#           Michael D. Petersen <railfan@drgw.net>
+#           Nathan D. Holmes <maverick@drgw.net>
+# File:     mrbus.py
+# License:  GNU General Public License v3
+# 
+# LICENSE:
+#   Copyright (C) 2018 Mark Finn, Michael Petersen & Nathan Holmes
+#     
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 3 of the License, or
+#   any later version.
+# 
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+# 
+# DESCRIPTION:
+#   This class provides a way to interface with a MRBus control network
+#   ( https://www.iascaled.com/blog/an-introduction-to-mrbus/ ), either via 
+#   the Iowa Scaled MRB-CI2 to a wired network or via an XBee to a wireless
+#   network connected by serial (likely an FTDI adapter or similar) to the 
+#   host computer.
+# 
+# *************************************************************************
+
 import serial
 import time
 from collections import deque

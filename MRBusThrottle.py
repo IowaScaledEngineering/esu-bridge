@@ -1,10 +1,35 @@
-import esu
+# *************************************************************************
+# Title:    Client driver for MRBus Throttle (mainly the ProtoThrottle)
+# Authors:  Michael D. Petersen <railfan@drgw.net>
+#           Nathan D. Holmes <maverick@drgw.net>
+# File:     MRBusThrottle.py
+# License:  GNU General Public License v3
+# 
+# LICENSE:
+#   Copyright (C) 2018 Michael Petersen & Nathan Holmes
+#     
+#   This program is free software; you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation; either version 3 of the License, or
+#   any later version.
+# 
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
+# 
+# DESCRIPTION:
+#   This class provides a way parse incoming MRBus throttle packets (primarily
+#   from the ProtoThrottle ( http://www.protothrottle.com/ ) and send them
+#   on to a variety of command stations as a form of protocol translator.
+# 
+# *************************************************************************
+
 import mrbus
 import sys
 import time
 
 class MRBusThrottle:
-
    
    def __init__(self, addr):
       self.locAddr = 0
