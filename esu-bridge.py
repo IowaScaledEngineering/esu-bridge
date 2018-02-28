@@ -56,6 +56,7 @@ baseAddress = 0xD0
 ap = argparse.ArgumentParser()
 ap.add_argument("-s", "--serial", help="specify serial device for XBee radio", type=str)
 ap.add_argument("-i", "--server_ip", help="specify IP address of ESU Command Station or WiThrottle server", type=str)
+ap.add_argument("-p", "--server_port", help="specify port of ESU Command Station or WiThrottle server", type=str)
 ap.add_argument("-c", "--config", help="specify file with configuration", type=str)
 ap.add_argument("-g", "--gitver", help="6 character Git revision to post in version packet", type=str)
 args = ap.parse_args()
@@ -69,11 +70,11 @@ withrottleConnection = False
 gitver = [ 0x00, 0x00, 0x00 ]
 ptPktTimeout = 4000
 dccConnectionMode = ""
-withrottlePort = 12090
-server_ip = None
+serverIP = None
+serverPort = None
 
 def getMillis():
-	return time.time() * 1000.0
+   return time.time() * 1000.0
 
 
 # Big loop - runs as long as the program is alive
@@ -136,17 +137,16 @@ while 1:
             withrottleConnection = False
 
          try:
-            server_ip = parser.get("configuration", "serverIP")
+            serverIP = parser.get("configuration", "serverIP")
          except Exception as e:
             print "Server IP not set by configuration file"
-            server_ip is None
+            serverIP is None
 
          try:
-            withrottlePort = parser.get("configuration", "withrottlePort")
+            serverPort = parser.get("configuration", "serverPort")
          except Exception as e:
-            withrottlePort = 12090
-            print "WiThrottle port not set by configuration file - setting to %d" % withrottlePort
-            
+            print "Server Port not set by configuration file"
+            serverPort is None
 
       except Exception as e:
          print "Yikes!  Exception reading configuration file"
@@ -161,7 +161,9 @@ while 1:
          gitver = [ 0x00, 0x00, 0x00 ]
 
    if args.server_ip is not None:
-      server_ip = args.server_ip
+      serverIP = args.server_ip
+   if args.server_port is not None:
+      serverPort = int(args.server_port)
 
    print ""
    print " ENDING CONFIG PHASE"
@@ -201,39 +203,37 @@ while 1:
          mrbee.setXbeeLED('D9', True);
 
          if esuConnection is True:
-		      print "Looking for ESU CabControl command station"
-		      if server_ip is not None:
-		         esuIP = server_ip
-		      else:
-		         esuIP = netUtils.serverFind(searchDelay, 15471)  # ESU CabControl is port 15471
+            print "Looking for ESU CabControl command station"
 
-		      if esuIP is None:
-		         print "No ESU command station found, waiting and retrying..."
-		         time.sleep(2)
-		         continue
+            if serverPort is None:
+               serverPort = 15471  # Default for ESU
 
-		      print "Trying ESU command station connection"
-		   
-		      cmdStn = esu.ESUConnection()
-		      cmdStn.connect(esuIP)
+            if serverIP is None:
+               serverIP = netUtils.serverFind(searchDelay, serverPort)  # ESU CabControl is port 15471
+
+            if serverIP is None:
+               print "No ESU command station found, waiting and retrying..."
+               time.sleep(2)
+               continue
+
+            print "Trying ESU command station connection"
+            cmdStn = esu.ESUConnection()
+            cmdStn.connect(serverIP, serverPort)
 
          elif withrottleConnection is True:
             print "Looking for WiThrottle server"
-            withrottleIP = None
-            if server_ip is not None:
-               withrottleIP = server_ip
-            else:
-               withrottleIP = netUtils.serverFind(searchDelay, withrottlePort)
+            serverIP = None
+            if serverIP is None:
+               serverIP = netUtils.serverFind(searchDelay, withrottlePort)
 
-            if withrottleIP is None:
+            if serverIP is None:
                print "No WiThrottle server found, waiting and retrying..."
                time.sleep(2)
                continue
 
             print "Trying WiThrottle server connection"
-		   
             cmdStn = withrottle.WiThrottleConnection()
-            cmdStn.connect(withrottleIP, withrottlePort)
+            cmdStn.connect(serverIP, serverPort)
          
          else:
             print "No configured DCC system type - halting"
