@@ -2,7 +2,7 @@
 
 ## Overview
 
-This project is a protocol bridge, designed to connect the [ProtoThrottle](http://www.protothrottle.com) to [ESU CabControl DCC command stations](http://www.esu.eu/en/products/digital-control/cabcontrol/) or to JMRI WiFi Throttle (aka WiThrottle or Engine Driver) servers.  Written in python, the code is intended to execute on a Raspberry Pi or similar with an XBee attached to the USB port via an FTDI serial adapter.  The network side - wired or wireless - should be configured to connect to either the ESU CabControl (either via the ESU's built-in wifi access point, or both plugged into the same wired network) or whatever local network the JMRI WiThrottle server is running on.  However, this code was largely written and tested running on a desktop Linux machine, and should run similarly well on any modern Linux distro with the appropriate python packages installed.
+This project is a protocol bridge, designed to connect the Iowa Scaled Engineering [ProtoThrottle](http://www.protothrottle.com) to [ESU CabControl DCC command stations](http://www.esu.eu/en/products/digital-control/cabcontrol/) or to JMRI WiFi Throttle (aka WiThrottle or Engine Driver) servers.  Written in python, the code is intended to execute on a Raspberry Pi or similar with an XBee attached to the USB port via an FTDI serial adapter.  The network side - wired or wireless - should be configured to connect to either the ESU CabControl (either via the ESU's built-in wifi access point, or both plugged into the same wired network) or whatever local network the JMRI WiThrottle server is running on.  However, this code was largely written and tested running on a desktop Linux machine, and should run similarly well on any modern Linux distro with the appropriate python packages installed.
 
 Configuration is done via protothrottle.ini, as described below.
 
@@ -36,7 +36,7 @@ A default protothrottle.ini is included in the projects.  I'd start by having a 
 
 `searchDelay` - When searching the connected network for ESU or Withrottle servers, how long to wait (in seconds) for each to respond.  This defaults to 0.03 seconds, which is typically adequate without incurring undue slowness.
 
-`packetTimeout` - 
+`packetTimeout` - Time (in seconds) before a ProtoThrottle is considered dead and any locomotives being controlled by it are brought to a halt.  (Doesn't actually work yet.)
 
 `serverIP` - Specify the server address for the ESU command station or WiThrottle server (depending on how mode is set).  Will override autodetect, but will be overriden by command line parameters.
 
