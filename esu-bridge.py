@@ -208,32 +208,37 @@ while 1:
             if serverPort is None:
                serverPort = 15471  # Default for ESU
 
-            if serverIP is None:
-               serverIP = netUtils.serverFind(searchDelay, serverPort)  # ESU CabControl is port 15471
+            foundIP = serverIP
+            if foundIP is None:
+               foundIP = netUtils.serverFind(searchDelay, serverPort)
 
-            if serverIP is None:
+            if foundIP is None:
                print "No ESU command station found, waiting and retrying..."
                time.sleep(2)
                continue
 
             print "Trying ESU command station connection"
             cmdStn = esu.ESUConnection()
-            cmdStn.connect(serverIP, serverPort)
+            cmdStn.connect(foundIP, serverPort)
 
          elif withrottleConnection is True:
             print "Looking for WiThrottle server"
-            serverIP = None
-            if serverIP is None:
-               serverIP = netUtils.serverFind(searchDelay, withrottlePort)
 
-            if serverIP is None:
+            if serverPort is None:
+               serverPort = 12090  # Default for WiThrottle
+
+            foundIP = serverIP
+            if foundIP is None:
+               foundIP = netUtils.serverFind(searchDelay, serverPort)
+
+            if foundIP is None:
                print "No WiThrottle server found, waiting and retrying..."
                time.sleep(2)
                continue
 
             print "Trying WiThrottle server connection"
             cmdStn = withrottle.WiThrottleConnection()
-            cmdStn.connect(serverIP, serverPort)
+            cmdStn.connect(foundIP, serverPort)
          
          else:
             print "No configured DCC system type - halting"
