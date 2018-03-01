@@ -43,6 +43,8 @@ import ConfigParser
 
 import esu
 import withrottle
+import lnwi
+
 import mrbus
 import MRBusThrottle
 import netUtils
@@ -119,13 +121,18 @@ while 1:
 
          try:
             dccConnectionMode = parser.get("configuration", "mode")
+            esuConnection = False
+            withrottleConnection = False
+            lnwiConnection = False
+
             if dccConnectionMode == "esu":
                print "Setting connection to ESU WiFi"
                esuConnection = True
             elif dccConnectionMode == "withrottle":
                print "Setting connection to WiThrottle"
                withrottleConnection = True
-               esuConnection = False
+            elif dccConnectionMode == "lnwi":
+               lnwiConnection = True
             else:
                print "Connection mode [%s] invalid, defaulting to ESU WiFi" % (dccConnectionMode) 
                esuConnection = True
@@ -135,6 +142,7 @@ while 1:
             print e
             esuConnection = True
             withrottleConnection = False
+            lnwiConnection = False
 
          try:
             serverIP = parser.get("configuration", "serverIP")
@@ -239,7 +247,27 @@ while 1:
             print "Trying WiThrottle server connection"
             cmdStn = withrottle.WiThrottleConnection()
             cmdStn.connect(foundIP, serverPort)
-         
+
+         elif lnwiConnection is True:
+            print "Looking for LNWI server"
+
+            if serverPort is None:
+               serverPort = 12090  # Default for WiThrottle / LNWI
+
+            foundIP = serverIP
+            if foundIP is None:
+               foundIP = netUtils.serverFind(searchDelay, serverPort)
+
+            if foundIP is None:
+               print "No LNWI adapter found, waiting and retrying..."
+               time.sleep(2)
+               continue
+
+            print "Trying LNWI server connection"
+            cmdStn = lnwi.LNWIConnection()
+            cmdStn.connect(foundIP, serverPort)
+
+
          else:
             print "No configured DCC system type - halting"
             mrbee.setXbeeLED('D6', True);
@@ -281,12 +309,12 @@ while 1:
          currentMillis = getMillis()
          
          if currentMillis > (lastErrorTime + 500) and errorLightOn:
-            print "Turning Error light off"
+            print "Turning Error LED off"
             errorLightOn = False
             mrbee.setXbeeLED('D6', errorLightOn)
 
          if currentMillis > ( lastPktTime + 4000) and pktLightOn:
-            print "Turning ProtoThrottle received light off"
+            print "Turning ProtoThrottle received LED off"
             pktLightOn = False
             mrbee.setXbeeLED('D7', pktLightOn)
 
@@ -304,7 +332,7 @@ while 1:
             continue
 
          if pkt.src == baseAddress:
-            print "Conflicting ProtoThrottle base station detected!!!\nTurning Error light on"
+            print "Conflicting ProtoThrottle base station detected!!!\nTurning Error LED on\n"
             errorLightOn = True
             lastErrorTime = getMillis()
             mrbee.setXbeeLED('D6', errorLightOn)
@@ -313,6 +341,7 @@ while 1:
          if pkt.cmd != 0x53 or len(pkt.data) != 10 or baseAddress != pkt.dest:
             continue
 
+         # Create a MRBusThrottle object for every new Protothrottle that shows up
          if pkt.src not in throttles:
             throttles[pkt.src] = MRBusThrottle.MRBusThrottle(pkt.src)
       
@@ -320,7 +349,7 @@ while 1:
 
          lastPktTime = getMillis()
          if False == pktLightOn:
-            print "Turning ProtoThrottle received light on"
+            print "Turning ProtoThrottle packet received LED on"
             pktLightOn = True
             mrbee.setXbeeLED('D7', pktLightOn)
 

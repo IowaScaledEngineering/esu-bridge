@@ -33,7 +33,7 @@ class MRBusThrottle:
    
    def __init__(self, addr):
       self.locAddr = 0
-      self.locAddrShort = 0
+      self.locAddrLong = True
       self.locSpeed = 0
       self.locDirection = 0
       self.locObjID = 0
@@ -48,8 +48,10 @@ class MRBusThrottle:
          
       addr = pkt.data[0] * 256 + pkt.data[1]
       if (addr & 0x8000):
-         locAddrShort = 1
+         locAddrLong = False
          addr = addr & 0x007F
+      else:
+         locAddrLong = True
          
       speed = pkt.data[2] & 0x7F
       if 1 == speed:
@@ -67,8 +69,8 @@ class MRBusThrottle:
          direction = 1
 
       if (addr != self.locAddr):
-         self.locObjID = cmdStn.locomotiveObjectGet(addr, self.throttleAddr)
          self.locAddr = addr
+         self.locObjID = cmdStn.locomotiveObjectGet(self.locAddr, self.throttleAddr, self.locAddrLong)
          print "Acquiring new locomotive %d - objID = %s" % (self.locAddr, self.locObjID)
       
       # Only send ESTOP if we just moved into that state

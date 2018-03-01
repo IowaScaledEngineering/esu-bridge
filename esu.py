@@ -100,7 +100,7 @@ class ESUConnection:
       result = self.esuTXRX(cmdStr, self.RElocAdd)
       return int(result[0]['objID'])
 
-   def locomotiveObjectGet(self, locoNum, cabID):
+   def locomotiveObjectGet(self, locoNum, cabID, isLongAddress):
       """Acquires and returns a handle that will be used to control a locomotive address."""
       cmdStr = "queryObjects(10,addr)"
       locoList = self.esuTXRX(cmdStr, self.REglobalList, 'locAddr')

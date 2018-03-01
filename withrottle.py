@@ -76,7 +76,7 @@ class WiThrottleConnection:
       except:
          pass
       
-   def locomotiveObjectGet(self, locoNum, cabID):
+   def locomotiveObjectGet(self, locoNum, cabID, isLongAddress):
       """Acquires and returns a handle that will be used to control a locomotive address.  This will release
          any locomotive that cabID was previously controlling."""
       print "WiThrottle locomotiveObjectGet"
