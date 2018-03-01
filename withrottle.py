@@ -80,7 +80,7 @@ class WiThrottleConnection:
       """Acquires and returns a handle that will be used to control a locomotive address.  This will release
          any locomotive that cabID was previously controlling."""
       print "WiThrottle locomotiveObjectGet"
-      objID = {'addr':srcAddr, 'locoNum':locoNum, 'isLong':True }
+      objID = {'addr':cabID, 'locoNum':locoNum, 'isLong':True }
 
       if cabID in self.activeThrottles:
          self.rxtx(objID['addr'], "Tr\n")
@@ -88,7 +88,7 @@ class WiThrottleConnection:
          self.activeThrottles[cabID] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
          self.activeThrottles[cabID].settimeout(0.01)
          self.activeThrottles[cabID].connect((self.ip, self.port))
-         self.rxtx(objID['addr'], "NProtoThrottle 0x%02X\n" % (srcAddr))
+         self.rxtx(objID['addr'], "NProtoThrottle 0x%02X\n" % (cabID))
          self.rxtx(objID['addr'], "*60\n")
 
       if objID['isLong']:
