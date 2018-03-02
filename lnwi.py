@@ -39,6 +39,7 @@ class LNWIConnection:
    conn = socket.socket()
    recvBuffer = ""
    activeThrottles = { }
+   funcStatus = { }
    lastUpdate = 0
    recvData = ""
    ip = None
@@ -74,8 +75,8 @@ class LNWIConnection:
          self.rxtx("M%1.1sA*<;>r\n" % (mtID))
          self.rxtx("M%1.1s-*<;>\n" % (mtID))
          time.sleep(0.1)
-         connection.close()
-      self.rxtx(addr, "Q\n")
+      self.rxtx("Q\n")
+      self.conn.close()
       self.activeThrottles = { }
       print "Disconnected"
 
@@ -84,7 +85,7 @@ class LNWIConnection:
       if '\n' not in self.recvData:
          return
 
-      responseStrings = self.recvData.split(recvData, '\n')
+      responseStrings = self.recvData.split('\n')
 
       # If there's trailing unfinished data, put it back in the recieve data queue, otherwise clear it
       if not self.recvData.endswith('\n'):
@@ -100,9 +101,8 @@ class LNWIConnection:
          if len(resp) == 0:
             continue
 
-
          if ('VN' == resp[0:2]):  # Protocol version
-            self.version = cmdChr[2:]
+            self.version = resp[2:]
          elif ('RL' == resp[0:2]):  # Roster List, don't care right now
             pass
          elif ('PPA' == resp[0:3]):  # Track Power
@@ -126,24 +126,36 @@ class LNWIConnection:
          elif ('U' == resp[0:1]):  # Host controller name
             serverID = resp[1:]
          elif ('M' == resp[0:1]):  # Some sort of multithrottle response - parse this
-            pass  # FIXME
+            print "Function update [%s]" % resp
+            try:
+               (throttle,cmd) = resp.split("<;>")
+               if cmd[0:1] == 'F':
+                  funcNum = int(cmd[2:])
+                  funcVal = int(cmd[1:2])
+                  self.funcStatus[throttle[1:2]][funcNum] = funcVal
+                  print "Updated function %d to status %d on cab %s" % (funcNum, funcVal, throttle[1:2])
+            except:
+               print "Exception setting function status"
+               
          else:
             print "Got unknown host->client string of [%s], ignoring\n" % resp
 
 
    def rxtx(self, cmdStr):
       """Internal shared function for transacting with the WiThrottle server."""
-      self.lastUpdate = time.time()
-      self.conn.sendall(cmdStr)
+      if cmdStr is not None:
+         self.lastUpdate = time.time()
+         self.conn.sendall(cmdStr)
+
       try:
-         self.recvBuffer += self.conn.recv(WITHROTTLE_RCV_SZ)
+         self.recvData += self.conn.recv(WITHROTTLE_RCV_SZ)
       except:
          pass
       self.parseIncomingData()
 
-   def getAvailableMultithrottleLetter():
-      mtLetters = frozenset('ABCDEFGHIJKLMNOPQRSTUVWXYZ012345')
-      usedMTLetters = set(activeThrottles.values())
+   def getAvailableMultithrottleLetter(self):
+      mtLetters = set('ABCDEFGHIJKLMNOPQRSTUVWXYZ012345')
+      usedMTLetters = set(self.activeThrottles.values())
       mtLetters.difference(usedMTLetters)
       return mtLetters.pop()
 
@@ -152,25 +164,34 @@ class LNWIConnection:
          any locomotive that cabID was previously controlling."""
       print "WiThrottle locomotiveObjectGet"
 
-      if cabID not in activeThrottles:
-         activeThrottles[cabID] = getAvailableMultithrottleLetter()
+      if cabID not in self.activeThrottles:
+         self.activeThrottles[cabID] = self.getAvailableMultithrottleLetter()
 
       objID = {'addr':cabID, 'locoNum':locoNum, 'isLong':isLongAddress }
 
+      self.funcStatus[self.activeThrottles[cabID]] = [0] * 29  # Array of 29 zeros for function status
+
       #Drop anything this cab might have had before.  If nothing, no harm
-      self.rxtx("M%1.1sA*<;>r\n" % (activeThrottles[objID['addr']]))
-      self.rxtx("M%1.1s-*<;>\n" % (activeThrottles[objID['addr']]))
+      self.rxtx("M%1.1sA*<;>r\n" % (self.activeThrottles[objID['addr']]))
+      self.rxtx("M%1.1s-*<;>\n" % (self.activeThrottles[objID['addr']]))
 
       if objID['isLong']:
          # Acquire new locomotive at long address
-         self.rxtx("M%1.1s+L%d<;>L%d\n" % (activeThrottles[objID['addr']], objID['locoNum']))
+         self.rxtx("M%1.1s+L%d<;>L%d\n" % (self.activeThrottles[objID['addr']], objID['locoNum'], objID['locoNum']))
       else:
-         self.rxtx("M%1.1s+S%d<;>S%d\n" % (activeThrottles[objID['addr']], objID['locoNum']))
+         self.rxtx("M%1.1s+S%d<;>S%d\n" % (self.activeThrottles[objID['addr']], objID['locoNum'], objID['locoNum']))
+
+      for i in range(0,10):
+         self.rxtx(None)
+         time.sleep(0.01)
+
+      # FIXME - maybe wait a bit here to get functional statuses?
+
       return objID
          
    def locomotiveEmergencyStop(self, objID):
       """Issues an emergency stop command to a locomotive handle that has been previously acquired with locomotiveObjectGet()."""
-      self.rxtx("M%1.1sA*<;>X\n", activeThrottles[objID['addr']])
+      self.rxtx("M%1.1sA*<;>X\n", self.activeThrottles[objID['addr']])
 
    # For the purposes of this function, direction of 0=forward, 1=reverse
    def locomotiveSpeedSet(self, objID, speed, direction=0):
@@ -186,9 +207,9 @@ class LNWIConnection:
       if speed >= 127 or speed < 0:
          speed = 0
 
-      self.rxtx("M%1.1sA*<;>V%d\n" % (activeThrottles[objID['addr']], speed))
+      self.rxtx("M%1.1sA*<;>V%d\n" % (self.activeThrottles[objID['addr']], speed))
       # Direction is 0=REV, 1=FWD on WiThrottle
-      self.rxtx("M%1.1sA*<;>R%d\n" % (activeThrottles[objID['addr']], [1,0][direction]))
+      self.rxtx("M%1.1sA*<;>R%d\n" % (self.activeThrottles[objID['addr']], [1,0][direction]))
 
       print "Set speed on locomotive ID %d to %d, %s" % (objID['locoNum'], speed, ["FWD","REV"][direction])
    
@@ -201,9 +222,13 @@ class LNWIConnection:
       # This is the nasty part.  The LNWI doesn't support the "force function" ('f') command, so we have to do 
       # weird crap here to actually get the function in the state we want.
       # FIXME, this is wrong
-      self.rxtx("M%1.1sA*<;>F1%d\n" % (activeThrottles[objID['addr']], funcNum))
-      self.rxtx("M%1.1sA*<;>F0%d\n" % (activeThrottles[objID['addr']], funcNum))
+      if funcNum == 2:  # 2 is non-latching, all others are latching
+         self.rxtx("M%1.1sA*<;>F%d%d\n" % (self.activeThrottles[objID['addr']], funcVal, funcNum))
+      else:
 
+         if self.funcStatus[ self.activeThrottles[ objID['addr'] ] ] [funcNum] != funcVal:
+            self.rxtx("M%1.1sA*<;>F1%d\n" % (self.activeThrottles[objID['addr']], funcNum) )
+            self.rxtx("M%1.1sA*<;>F0%d\n" % (self.activeThrottles[objID['addr']], funcNum) )
       print "Set function %d on locomotive ID %d to %d" % (funcNum, objID['locoNum'],  funcVal)
 
    def update(self):
@@ -213,10 +238,10 @@ class LNWIConnection:
       if heartbeatInterval < 1:
          heartbeatInterval = 1
 
-      if time.time() > lastUpdate + heartbeatInterval:
+      if time.time() > self.lastUpdate + heartbeatInterval:
          self.rxtx("*\n")
-
-      self.parseIncomingData()
+      else:
+         self.rxtx(None)
 
 
    
