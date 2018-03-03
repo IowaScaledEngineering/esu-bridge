@@ -132,6 +132,7 @@ while 1:
                print "Setting connection to WiThrottle"
                withrottleConnection = True
             elif dccConnectionMode == "lnwi":
+               print "Setting connection to Digitrax LNWI"
                lnwiConnection = True
             else:
                print "Connection mode [%s] invalid, defaulting to ESU WiFi" % (dccConnectionMode) 
@@ -286,6 +287,7 @@ while 1:
          sys.exit()
       except Exception as e:
          print "Connection phase exception!!!"
+         time.sleep(2)
          print e
 
 

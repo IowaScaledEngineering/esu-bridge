@@ -230,10 +230,13 @@ class mrbeeSimple(object):
     self.logfile.write(s+repr(msg)+'\n')
 
   def disconnect(self):
-    self.setLED('D6', False)
-    self.setLED('D7', False)
-    self.setLED('D8', False)
-    self.setLED('D9', False)  
+    try:  # These very well might fail if the port went away
+       self.setLED('D6', False)
+       self.setLED('D7', False)
+       self.setLED('D8', False)
+       self.setLED('D9', False)  
+    except:
+       pass
     self.serial.close()
 
   def getpkt(self):
