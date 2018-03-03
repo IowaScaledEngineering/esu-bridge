@@ -88,8 +88,9 @@ class WiThrottleConnection:
          self.activeThrottles[cabID] = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
          self.activeThrottles[cabID].settimeout(0.01)
          self.activeThrottles[cabID].connect((self.ip, self.port))
+         time.sleep(0.02)
          self.rxtx(objID['addr'], "NProtoThrottle 0x%02X\n" % (cabID))
-         self.rxtx(objID['addr'], "*60\n")
+         self.rxtx(objID['addr'], "HUProtoThrottle 0x%02X\n" % (cabID))
 
       if objID['isLong']:
          self.rxtx(objID['addr'], "TL%d\n" % (objID['locoNum']))
