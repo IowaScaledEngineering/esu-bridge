@@ -156,7 +156,7 @@ class LNWIConnection:
    def getAvailableMultithrottleLetter(self):
       mtLetters = set('ABCDEFGHIJKLMNOPQRSTUVWXYZ012345')
       usedMTLetters = set(self.activeThrottles.values())
-      mtLetters.difference(usedMTLetters)
+      mtLetters = mtLetters.difference(usedMTLetters)
       return mtLetters.pop()
 
    def locomotiveObjectGet(self, locoNum, cabID, isLongAddress=True):
@@ -165,7 +165,9 @@ class LNWIConnection:
       print "WiThrottle locomotiveObjectGet"
 
       if cabID not in self.activeThrottles:
-         self.activeThrottles[cabID] = self.getAvailableMultithrottleLetter()
+         newThrottleLetter = self.getAvailableMultithrottleLetter()
+         self.activeThrottles[cabID] = newThrottleLetter
+         print "Added throttle letter [%s] for PT cab 0x%02X (loco %d)" % (newThrottleLetter, cabID, locoNum)
 
       objID = {'addr':cabID, 'locoNum':locoNum, 'isLong':isLongAddress }
 
