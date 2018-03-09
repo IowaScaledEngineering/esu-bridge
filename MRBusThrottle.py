@@ -107,7 +107,7 @@ class MRBusThrottle:
                functions[i] = 1
          
       funcsChanged = { }
-      for i in range(28):
+      for i in range(29):
          if functions[i] != self.locFunctions[i]:
             print "Sending update for function %d to state %d" % (i, functions[i])
             cmdStn.locomotiveFunctionSet(self.locObjID, i, functions[i])
