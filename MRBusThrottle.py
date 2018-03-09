@@ -38,7 +38,7 @@ class MRBusThrottle:
       self.locDirection = 0
       self.locObjID = 0
       self.locEStop = 0
-      self.locFunctions = [ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 ]
+      self.locFunctions = [ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 ]
       self.throttleAddr = addr
       return
    
