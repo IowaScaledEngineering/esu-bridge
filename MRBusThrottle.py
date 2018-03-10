@@ -38,7 +38,7 @@ class MRBusThrottle:
       self.locDirection = 0
       self.locObjID = 0
       self.locEStop = 0
-      self.locFunctions = [ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 ]
+      self.locFunctions = [ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 ]
       self.throttleAddr = addr
       return
    
@@ -89,9 +89,9 @@ class MRBusThrottle:
       
       functions = [ 0,0,0,0,0,0,0,0,0,0,
                        0,0,0,0,0,0,0,0,0,0,
-                       0,0,0,0,0,0,0,0 ]
+                       0,0,0,0,0,0,0,0,0 ]
       
-      for i in range(28):
+      for i in range(29):
 #         print "i=%d, shifter = %08X" % (i, 1<<(i))
          if i >= 0 and i < 8:
             if pkt.data[6] & (1<<i):
@@ -102,12 +102,12 @@ class MRBusThrottle:
          elif i >= 16 and i < 24:
             if pkt.data[4] & (1<<(i-16)):
                functions[i] = 1
-         elif i >= 24 and i < 28:
+         elif i >= 24 and i < 29:
             if pkt.data[3] & (1<<(i-24)):
                functions[i] = 1
          
       funcsChanged = { }
-      for i in range(28):
+      for i in range(29):
          if functions[i] != self.locFunctions[i]:
             print "Sending update for function %d to state %d" % (i, functions[i])
             cmdStn.locomotiveFunctionSet(self.locObjID, i, functions[i])
