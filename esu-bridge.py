@@ -152,7 +152,7 @@ while 1:
             serverIP is None
 
          try:
-            serverPort = parser.get("configuration", "serverPort")
+            serverPort = int(parser.get("configuration", "serverPort"))
          except Exception as e:
             print "Server Port not set by configuration file"
             serverPort is None
@@ -287,8 +287,8 @@ while 1:
          sys.exit()
       except Exception as e:
          print "Connection phase exception!!!"
-         time.sleep(2)
          print e
+         time.sleep(2)
 
 
    lastStatusTime = time.time()
@@ -356,9 +356,18 @@ while 1:
             mrbee.setXbeeLED('D7', pktLightOn)
 
       except (KeyboardInterrupt):
-         cmdStn.disconnect()
-         mrbee.disconnect()
+         try:
+            cmdStn.disconnect()
+         except:
+            pass
+
+         try:
+            mrbee.disconnect()
+         except:
+            pass
+
          sys.exit()
+
       except Exception as e:
          print "Caught some sort of exception, restarting the whole thing"
          print e
@@ -366,8 +375,15 @@ while 1:
          traceback.print_exception(*exc_info)
          del exc_info         
 
+         try:
+            cmdStn.disconnect()
+         except:
+            pass
 
-         cmdStn.disconnect()
-         mrbee.disconnect()
+         try:
+            mrbee.disconnect()
+         except:
+            pass
+            
          break
 
