@@ -24,8 +24,10 @@
 # 
 # *************************************************************************
 
-from time import time
+import time
 import socket
+import platform
+import subprocess
 
 try:
    import serial.tools.list_ports
@@ -40,6 +42,9 @@ def findXbeePort():
          return p.device
    return None
 
+def ping(ip):
+   ret = subprocess.call("ping -c 1 %s" % ip, shell=True, stdout=open('/dev/null', 'w'), stderr=subprocess.STDOUT)
+   return ret == 0
 
 def get_ip():
    """Tries to determine our local network IP address."""
@@ -60,21 +65,11 @@ def testPort(ip, port, timeout=0.01):
       s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
       s.settimeout(timeout)
       s.connect((ip, port))
+      s.close()
       return True
    except(socket.timeout,socket.error):
       return False
 
-def serverFind(timeout, port):
-   """Given a port, this searches the local class C subnet for anything with that port open."""
-   defaultIP = get_ip()
-   o1,o2,o3,o4 = defaultIP.split('.')
-   print "Starting Scan"
-   for i in range(0,254):
-      scanIP = "%s.%s.%s.%d" % (o1, o2, o3, i)
-      result = testPort(scanIP, port, timeout)
-      if result:
-         print "IP %s has port %d open" % (scanIP, port)
-         return scanIP
-   return None
+
 
 

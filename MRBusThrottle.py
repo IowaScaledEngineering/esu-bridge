@@ -38,14 +38,25 @@ class MRBusThrottle:
       self.locDirection = 0
       self.locObjID = 0
       self.locEStop = 0
-      self.locFunctions = [ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 ]
+      self.locFunctions = None
       self.throttleAddr = addr
+      self.lastUpdate = 0
       return
+      
+   def getLastUpdateTime(self):
+      return self.lastUpdate
+   
+   def disconnect(self, cmdStn):
+      cmdStn.locomotiveSpeedSet(self.locObjID, 0, 0)
+      cmdStn.locomotiveDisconnect(self.locObjID)
+      
    
    def update(self, cmdStn, pkt):
       if pkt.cmd != 0x53 or len(pkt.data) != 10:  # Not a status update, bump out
          return
-         
+      
+      # print "MRBusThrottle (0x%02X): UPDATE loco %d" % (self.throttleAddr, self.locAddr)
+      
       addr = pkt.data[0] * 256 + pkt.data[1]
       if (addr & 0x8000):
          locAddrLong = False
@@ -71,28 +82,38 @@ class MRBusThrottle:
       if (addr != self.locAddr):
          self.locAddr = addr
          self.locObjID = cmdStn.locomotiveObjectGet(self.locAddr, self.throttleAddr, self.locAddrLong)
-         print "Acquiring new locomotive %d - objID = %s" % (self.locAddr, self.locObjID)
+         print "MRBusThrottle (0x%02X): Acquiring new locomotive %d - objID = %s" % (self.throttleAddr, self.locAddr, self.locObjID)
       
       # Only send ESTOP if we just moved into that state
       if estop != self.locEStop and estop == 1:
-         print "Sending ESTOP locomotive %d" % (self.locAddr)
+         print "MRBusThrottle (0x%02X): Set ESTOP loco %d" % (self.throttleAddr, self.locAddr)
          cmdStn.locomotiveEmergencyStop(self.locObjID)
 
       self.locEStop = estop
 
       if self.locEStop != 1 and (speed != self.locSpeed or direction != self.locDirection):
-         print "Updating speed/dir to %d/%d for locomotive %d" % (speed, direction, self.locAddr)
+         print "MRBusThrottle (0x%02X): Set loco [%d] speed %d %s" % (self.throttleAddr, self.locAddr, speed, ["FWD","REV"][direction])
          cmdStn.locomotiveSpeedSet(self.locObjID, speed, direction)
 
       self.locSpeed = speed
       self.locDirection = direction
       
+      # On the first pass, get the function statuses from the command station
+      # The LNWI / WiThrottle support this, others may in the future
+      if self.locFunctions is None:
+         try:
+            self.locFunctions = cmdStn.locomotiveFunctionsGet(self.locObjID)
+            print "MRBusThrottle (0x%02X): Got loco [%d] functions from cmd station" % (self.throttleAddr, self.locAddr)
+            print self.locFunctions
+         except Exception as e:
+            print "MRBusThrottle (0x%02X): Exception in locomotiveFunctionsGet() for loco [%d]" % (self.throttleAddr, self.locAddr)
+            self.locFunctions = [ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 ]
+         
       functions = [ 0,0,0,0,0,0,0,0,0,0,
                        0,0,0,0,0,0,0,0,0,0,
                        0,0,0,0,0,0,0,0,0 ]
       
       for i in range(29):
-#         print "i=%d, shifter = %08X" % (i, 1<<(i))
          if i >= 0 and i < 8:
             if pkt.data[6] & (1<<i):
                functions[i] = 1
@@ -105,14 +126,15 @@ class MRBusThrottle:
          elif i >= 24 and i < 29:
             if pkt.data[3] & (1<<(i-24)):
                functions[i] = 1
-         
-      funcsChanged = { }
+
       for i in range(29):
          if functions[i] != self.locFunctions[i]:
-            print "Sending update for function %d to state %d" % (i, functions[i])
+            print "MRBusThrottle (0x%02X): Set loco [%d] function [%d] to [%d]" % (self.throttleAddr, self.locAddr, i, functions[i])
             cmdStn.locomotiveFunctionSet(self.locObjID, i, functions[i])
 
       self.locFunctions = functions
+      
+      self.lastUpdate = time.time()
       
       return
       

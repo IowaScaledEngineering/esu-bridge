@@ -35,7 +35,7 @@ import re
 class ESUConnection:
    """An interface to talk to an ESU CabControl command station via the network in order to
       control model railway locomotives via DCC or other supported protocols."""
-   conn = socket.socket()
+   conn = None
 
    # Define a few constants - the ESU port is always 15471
    ESU_PORT = 15471
@@ -47,23 +47,25 @@ class ESUConnection:
    
    def __init__(self):
       """Constructor for the object.  Any internal initialization should occur here."""
-      self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+      pass
      
    def connect(self, ip, port = None):
       """Connect this object to an ESU CabControl command station on the IP address specified."""
       if port is None:
          port = self.ESU_PORT
-      print "Trying to connect to %s on port %d" % (ip, port)
+      print "ESU Trying to connect to %s on port %d" % (ip, port)
       try:
+         self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
          self.conn.connect((ip, port))
-         print "ESU command station connection succeeded"
+         print "ESU Command station connection succeeded"
       except:
-         print "ESU command station connection failed"
+         print "ESU Command station connection failed"
       
    def disconnent(self):
       """Disconnect from the CabControl command station in a clean way."""
-      print "Disconnecting"
+      print "ESU Disconnecting"
       conn.close()
+      conn = None
       
    def esuTXRX(self, cmdStr, parseRE=None, resultKey=''):
       """Internal shared function for transacting with the command station."""
@@ -73,9 +75,9 @@ class ESUConnection:
       lines = resp.splitlines()
       numDataElements = len(lines)
       if (lines[0] != "<REPLY %s>" % (cmdStr)):
-         print "YIKES!  Reply malformed!"
+         print "ESU: YIKES!  Reply malformed!"
       if (lines[numDataElements-1] != "<END 0 (OK)>"):
-         print "Got an error back, parsing..."
+         print "ESU: Got an error back, parsing..."
       
       if parseRE is None:
          return {}
@@ -90,7 +92,7 @@ class ESUConnection:
             else:
                results[parsed.group(resultKey)] = parsed.groupdict()
          except:
-            print "Line %d does not match regex\n  Line %d: '%s'" % (idx, idx, lines[idx])
+            print "ESU esuRXTX Line %d does not match regex\n  Line %d: '%s'" % (idx, idx, lines[idx])
 
       return results
 
@@ -102,6 +104,8 @@ class ESUConnection:
 
    def locomotiveObjectGet(self, locoNum, cabID, isLongAddress):
       """Acquires and returns a handle that will be used to control a locomotive address."""
+      print "ESU locomotiveObjectGet(%d, 0x%02X)" % (locoNum, cabID)
+      
       cmdStr = "queryObjects(10,addr)"
       locoList = self.esuTXRX(cmdStr, self.REglobalList, 'locAddr')
       
@@ -142,7 +146,7 @@ class ESUConnection:
       cmdStr = "set(%d, speed[%d], dir[%d])" % (objID, speed, direction)
       self.esuTXRX(cmdStr)
       
-      print "Set speed on locomotive ID %d to %d, %s" % (objID, speed, ["FWD","REV"][direction])
+      print "ESU locomotiveSpeedSet(%d): set speed %d %s" % (objID, speed, ["FWD","REV"][direction])
    
    def locomotiveFunctionSet(self, objID, funcNum, funcVal):
       """Sets or clears a function on a locomotive via a handle that has been previously acquired with locomotiveObjectGet().  
@@ -165,7 +169,17 @@ class ESUConnection:
          funcStr = funcStr + ", func[%d,%d]" % (funcNum, funcVal)
      
       cmdStr = "set(%d%s])" % (objID, funcStr)
-      self.esuTXRX(cmdStr)   
+      self.esuTXRX(cmdStr)
+      
+      print "ESU locomotiveFunctionSet(%d): set func %d to %d" % (objID['locoNum'], funcNum, funcVal)
+
+   def locomotiveDisconnect(self, objID):
+      print "ESU locomotiveDisconnect(%d): disconnect" % (objID['locoNum'])
+ 
+   def locomotiveFunctionsGet(self, objID):
+     print "ESU locomotiveFunctionsGet(%d)" % objID['locoNum']
+     print " ...isn't implemented yet\n"
+     return [0] * 29
 
    def update(self):
       """This should be called frequently within the main program loop.  While it doesn't do anything for ESU,

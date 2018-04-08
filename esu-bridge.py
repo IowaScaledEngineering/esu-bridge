@@ -43,7 +43,6 @@ import ConfigParser
 
 import esu
 import withrottle
-import lnwi
 
 import mrbus
 import MRBusThrottle
@@ -78,6 +77,38 @@ serverPort = None
 def getMillis():
    return time.time() * 1000.0
 
+def serverFind(timeout, port, mrbee):
+   """Given a port, this searches the local class C subnet for anything with that port open."""
+   defaultIP = netUtils.get_ip()
+   o1,o2,o3,o4 = defaultIP.split('.')
+   
+   startScan = getMillis()
+   ledStatus = False
+   
+   mrbee.setXbeeLED('D8', ledStatus);
+   
+   print "PT-BRIDGE: Starting Scan on subnet (%s.%s.%s.255)" % (o1, o2, o3)
+   for i in range(0,254):
+      scanIP = "%s.%s.%s.%d" % (o1, o2, o3, i)
+      result = netUtils.testPort(scanIP, port, timeout)
+      if getMillis() > (startScan + 100):
+          ledStatus = not ledStatus
+          mrbee.setXbeeLED('D8', ledStatus);
+      
+      if result:
+         print "PT-BRIDGE: IP %s has port %d open - waiting a second for the ports to close" % (scanIP, port)
+         
+         # Wait a second - the LNWI responds poorly to quick subsequent connections
+         for i in range(0, 4):
+            ledStatus = not ledStatus
+            mrbee.setXbeeLED('D8', ledStatus);
+            time.sleep(0.5)
+
+         mrbee.setXbeeLED('D8', False);
+         return scanIP
+   
+   mrbee.setXbeeLED('D8', False);
+   return None
 
 # Big loop - runs as long as the program is alive
 while 1:
@@ -108,10 +139,10 @@ while 1:
                searchDelay = newSearchDelay
                print "Setting search delay to %f" % (baseOffset, baseAddress)
             else:
-               print "Config search delay of %f is insane, setting to 0.03"
-               searchDelay = 0.03
+               print "Config search delay of %f is insane, setting to 0.08"
+               searchDelay = 0.08
          except:
-            searchDelay = 0.03
+            searchDelay = 0.08
 
          try:
             ptPktTimeout = parser.getint("configuration", "packetTimeout")
@@ -123,17 +154,18 @@ while 1:
             dccConnectionMode = parser.get("configuration", "mode")
             esuConnection = False
             withrottleConnection = False
-            lnwiConnection = False
 
             if dccConnectionMode == "esu":
                print "Setting connection to ESU WiFi"
                esuConnection = True
             elif dccConnectionMode == "withrottle":
-               print "Setting connection to WiThrottle"
+               print "Setting connection to JMRI WiThrottle"
+               operatingMode = "JMRI"
                withrottleConnection = True
             elif dccConnectionMode == "lnwi":
                print "Setting connection to Digitrax LNWI"
-               lnwiConnection = True
+               operatingMode = "LNWI"
+               withrottleConnection = True
             else:
                print "Connection mode [%s] invalid, defaulting to ESU WiFi" % (dccConnectionMode) 
                esuConnection = True
@@ -143,7 +175,6 @@ while 1:
             print e
             esuConnection = True
             withrottleConnection = False
-            lnwiConnection = False
 
          try:
             serverIP = parser.get("configuration", "serverIP")
@@ -186,7 +217,7 @@ while 1:
    while 1:
       try:
          throttles = { }
-         print "Looking for XBee / MRBus interface"
+         print "PT-BRIDGE: Looking for XBee / MRBus interface"
 
          if mrbee is not None:
             mrbee.disconnect()
@@ -201,76 +232,77 @@ while 1:
             xbeePort = netUtils.findXbeePort()
 
          if xbeePort is None:
-            print "No XBee found, waiting and retrying..."
+            print "PT-BRIDGE: No XBee found, waiting and retrying..."
             time.sleep(2)
             continue
          else:
-            print "Trying to start XBee / MRBus on port %s" % xbeePort
+            print "PT-BRIDGE: Trying to start XBee / MRBus on port %s" % xbeePort
 
          mrbee = mrbus.mrbus(xbeePort, baseAddress, logall=True, logfile=sys.stdout, busType='mrbee')
 
          mrbee.setXbeeLED('D9', True);
 
+         # First, test if we have a network.  If we don't, blink
+         # both the server connection and error LEDs
+         haveNetwork = False
+         while haveNetwork is not True:
+            defaultIP = netUtils.get_ip()
+            o1,o2,o3,o4 = defaultIP.split('.')
+            if (int(o1) == 127 and int(o2) == 0 and int(o3) == 0 and int(o4) == 1):
+               # Crap, we don't have network yet
+               print "PT-BRIDGE: No network yet found"
+               mrbee.setXbeeLED('D6', True);
+               mrbee.setXbeeLED('D8', True);
+               time.sleep(0.5)
+               mrbee.setXbeeLED('D6', False);
+               mrbee.setXbeeLED('D8', False);
+               time.sleep(0.5)
+            else:
+                print "PT-BRIDGE: Found network (%d.%d.%d.255)" % (int(o1), int(o2), int(o3))
+                haveNetwork = True
+
          if esuConnection is True:
-            print "Looking for ESU CabControl command station"
+            print "PT-BRIDGE: Looking for ESU CabControl command station"
 
             if serverPort is None:
                serverPort = 15471  # Default for ESU
 
             foundIP = serverIP
             if foundIP is None:
-               foundIP = netUtils.serverFind(searchDelay, serverPort)
+               foundIP = serverFind(searchDelay, serverPort, mrbee)
 
             if foundIP is None:
-               print "No ESU command station found, waiting and retrying..."
+               print "PT-BRIDGE: No ESU command station found, waiting and retrying..."
                time.sleep(2)
                continue
 
-            print "Trying ESU command station connection"
+            print "PT-BRIDGE: Trying ESU command station connection"
             cmdStn = esu.ESUConnection()
             cmdStn.connect(foundIP, serverPort)
 
          elif withrottleConnection is True:
-            print "Looking for WiThrottle server"
-
-            if serverPort is None:
-               serverPort = 12090  # Default for WiThrottle
-
-            foundIP = serverIP
-            if foundIP is None:
-               foundIP = netUtils.serverFind(searchDelay, serverPort)
-
-            if foundIP is None:
-               print "No WiThrottle server found, waiting and retrying..."
-               time.sleep(2)
-               continue
-
-            print "Trying WiThrottle server connection"
-            cmdStn = withrottle.WiThrottleConnection()
-            cmdStn.connect(foundIP, serverPort)
-
-         elif lnwiConnection is True:
-            print "Looking for LNWI server"
+            
+            print "PT-BRIDGE: Looking for %s server" % (operatingMode)
 
             if serverPort is None:
                serverPort = 12090  # Default for WiThrottle / LNWI
 
             foundIP = serverIP
             if foundIP is None:
-               foundIP = netUtils.serverFind(searchDelay, serverPort)
+               foundIP = serverFind(searchDelay, serverPort, mrbee)
 
             if foundIP is None:
-               print "No LNWI adapter found, waiting and retrying..."
+               print "PT-BRIDGE: No %s server found, waiting and retrying..." % (operatingMode)
                time.sleep(2)
                continue
 
-            print "Trying LNWI server connection"
-            cmdStn = lnwi.LNWIConnection()
-            cmdStn.connect(foundIP, serverPort)
-
+            print "PT-BRIDGE: Trying %s server connection" % (operatingMode)
+            cmdStn = withrottle.WiThrottleConnection()
+            cmdStn.connect(foundIP, serverPort, operatingMode)
 
          else:
-            print "No configured DCC system type - halting"
+            print "PT-BRIDGE: No configured DCC system type - halting"
+            mrbee.setXbeeLED('D8', True);
             mrbee.setXbeeLED('D6', True);
             while True:
                continue
@@ -286,16 +318,19 @@ while 1:
             mrbee.disconnect()
          sys.exit()
       except Exception as e:
-         print "Connection phase exception!!!"
+         print "PT-BRIDGE: Connection phase exception!!!"
          print e
+         exc_info = sys.exc_info()
+         traceback.print_exception(*exc_info)
          time.sleep(2)
 
 
    lastStatusTime = time.time()
-   lastErrorTime = getMillis()
-   errorLightOn = False
+   lastErrorTime = lastStatusTime
+   lastPktTime = lastStatusTime
+   lastPingTime = lastStatusTime
 
-   lastPktTime = getMillis()
+   errorLightOn = False
    pktLightOn = False
 
    print ""
@@ -320,6 +355,19 @@ while 1:
             pktLightOn = False
             mrbee.setXbeeLED('D7', pktLightOn)
 
+         if (currentMillis > (lastPingTime + 5000)):
+             pingSuccess = False
+             pingRetries = 0
+             while pingSuccess is not True and pingRetries < 3:
+                pingSuccess = pingSuccess or  netUtils.ping(foundIP)
+                pingRetries = pingRetries + 1
+
+             if pingSuccess is not True:
+                 raise Exception("Server unreachable")
+             
+             lastPingTime = currentMillis
+             
+
          pkt = mrbee.getpkt()
 
          if time.time() > lastStatusTime + statusInterval:
@@ -329,6 +377,21 @@ while 1:
             lastStatusTime = time.time()
 
          cmdStn.update()
+
+         currentTime = time.time()
+
+         throttlesToDelete = [ ]
+
+         for (key,throttle) in throttles.iteritems():
+            updateTime = throttle.getLastUpdateTime()
+            if (updateTime + (1 * 60)) < currentTime:
+               print "Throttle address 0x%02X has timed out, removing" % key
+               throttles[key].disconnect(cmdStn)
+               throttlesToDelete.append(key)
+               print "Throttle disconnected"
+
+         for key in throttlesToDelete:
+             del throttles[key]
 
          if pkt is None:
             continue
@@ -377,11 +440,13 @@ while 1:
 
          try:
             cmdStn.disconnect()
+            cmdStn = None
          except:
             pass
 
          try:
             mrbee.disconnect()
+            mrbee = None
          except:
             pass
             
