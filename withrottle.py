@@ -224,7 +224,7 @@ class WiThrottleConnection:
    def locomotiveEmergencyStop(self, objID):
       """Issues an emergency stop command to a locomotive handle that has been previously acquired with locomotiveObjectGet()."""
       print "%s locomotiveEmergencyStop(%d)" % (self.operatingMode, objID['locoNum'])
-      self.rxtx("M%1.1sA*<;>X\n", self.activeThrottles[objID['addr']])
+      self.rxtx("M%1.1sA*<;>X\n" % self.activeThrottles[objID['addr']])
 
    # For the purposes of this function, direction of 0=forward, 1=reverse
    def locomotiveSpeedSet(self, objID, speed, direction=0):
