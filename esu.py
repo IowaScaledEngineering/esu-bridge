@@ -61,7 +61,7 @@ class ESUConnection:
       except:
          print "ESU Command station connection failed"
       
-   def disconnent(self):
+   def disconnect(self):
       """Disconnect from the CabControl command station in a clean way."""
       print "ESU Disconnecting"
       conn.close()
@@ -171,13 +171,13 @@ class ESUConnection:
       cmdStr = "set(%d%s])" % (objID, funcStr)
       self.esuTXRX(cmdStr)
       
-      print "ESU locomotiveFunctionSet(%d): set func %d to %d" % (objID['locoNum'], funcNum, funcVal)
+      print "ESU locomotiveFunctionSet(%d): set func %d to %d" % (int(objID), funcNum, funcVal)
 
    def locomotiveDisconnect(self, objID):
-      print "ESU locomotiveDisconnect(%d): disconnect" % (objID['locoNum'])
+      print "ESU locomotiveDisconnect(%d): disconnect" % (int(objID))
  
    def locomotiveFunctionsGet(self, objID):
-     print "ESU locomotiveFunctionsGet(%d)" % objID['locoNum']
+     print "ESU locomotiveFunctionsGet(%d)" % (int(objID))
      print " ...isn't implemented yet\n"
      return [0] * 29
 
