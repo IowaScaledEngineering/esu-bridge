@@ -64,8 +64,12 @@ class ESUConnection:
    def disconnect(self):
       """Disconnect from the CabControl command station in a clean way."""
       print "ESU Disconnecting"
-      conn.close()
-      conn = None
+      try:
+         self.conn.close()
+         print "ESU Command station connection closed successfully"
+      except:
+         print "ESU Command station connection closed with exception, ignoring"
+      self.conn = None
       
    def esuTXRX(self, cmdStr, parseRE=None, resultKey=''):
       """Internal shared function for transacting with the command station."""
