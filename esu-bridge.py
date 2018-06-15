@@ -69,6 +69,7 @@ esuConnection = True
 withrottleConnection = False
 
 gitver = [ 0x00, 0x00, 0x00 ]
+bridgeTypeStr = "UNKNOWN"
 ptPktTimeout = 4000
 dccConnectionMode = ""
 serverIP = None
@@ -76,6 +77,23 @@ serverPort = None
 
 def getMillis():
    return time.time() * 1000.0
+
+def getInterfaceTypeByteArray(bridgeTypeStr):
+   interfaceTypeBytesMaxLen = 7
+
+   interfaceTypeBytes = [ord(' ')] * interfaceTypeBytesMaxLen
+   bytesUsed = 0
+
+   for c in bridgeTypeStr:
+      i = ord(c)
+      if i >= 32 and i<127:
+         interfaceTypeBytes[bytesUsed] = i
+         bytesUsed += 1
+         
+      if bytesUsed >= interfaceTypeBytesMaxLen:
+         break
+
+   return interfaceTypeBytes
 
 def serverFind(timeout, port, mrbee):
    """Given a port, this searches the local class C subnet for anything with that port open."""
@@ -158,24 +176,28 @@ while 1:
             if dccConnectionMode == "esu":
                print "Setting connection to ESU WiFi"
                esuConnection = True
+               bridgeTypeStr = "ESUENET"
             elif dccConnectionMode == "withrottle":
                print "Setting connection to JMRI WiThrottle"
                operatingMode = "JMRI"
                withrottleConnection = True
+               bridgeTypeStr = "JMRINET"
             elif dccConnectionMode == "lnwi":
                print "Setting connection to Digitrax LNWI"
                operatingMode = "LNWI"
                withrottleConnection = True
+               bridgeTypeStr = "LNWINET"
             else:
                print "Connection mode [%s] invalid, defaulting to ESU WiFi" % (dccConnectionMode) 
                esuConnection = True
-
+               bridgeTypeStr = "ESU*NET"
          except Exception as e:
             print "Exception in setting connection mode, defaulting to ESU WiFi"
             print e
             esuConnection = True
             withrottleConnection = False
-
+            bridgeTypeStr = "ESU#NET"
+            
          try:
             serverIP = parser.get("configuration", "serverIP")
          except Exception as e:
@@ -372,7 +394,7 @@ while 1:
 
          if time.time() > lastStatusTime + statusInterval:
 #            print "Sending status packet"
-            statusPacket = [ ord('v'), 0x80, gitver[2], gitver[1], gitver[0], 1, 0, ord('E'), ord('S'), ord('U'), ord('E'), ord('N'), ord('E'), ord('T')]
+            statusPacket = [ ord('v'), 0x80, gitver[2], gitver[1], gitver[0], 1, 0 ] + getInterfaceTypeByteArray(bridgeType)
             mrbee.sendpkt(0xFF, statusPacket)
             lastStatusTime = time.time()
 
