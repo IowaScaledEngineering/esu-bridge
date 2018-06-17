@@ -394,7 +394,7 @@ while 1:
 
          if time.time() > lastStatusTime + statusInterval:
 #            print "Sending status packet"
-            statusPacket = [ ord('v'), 0x80, gitver[2], gitver[1], gitver[0], 1, 0 ] + getInterfaceTypeByteArray(bridgeType)
+            statusPacket = [ ord('v'), 0x80, gitver[2], gitver[1], gitver[0], 1, 0 ] + getInterfaceTypeByteArray(bridgeTypeStr)
             mrbee.sendpkt(0xFF, statusPacket)
             lastStatusTime = time.time()
 
