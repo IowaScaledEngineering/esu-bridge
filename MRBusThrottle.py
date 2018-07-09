@@ -58,11 +58,11 @@ class MRBusThrottle:
       # print "MRBusThrottle (0x%02X): UPDATE loco %d" % (self.throttleAddr, self.locAddr)
       
       addr = pkt.data[0] * 256 + pkt.data[1]
-      if (addr & 0x8000):
-         locAddrLong = False
+      if 0 != (addr & 0x8000):
+         self.locAddrLong = False
          addr = addr & 0x007F
       else:
-         locAddrLong = True
+         self.locAddrLong = True
          
       speed = pkt.data[2] & 0x7F
       if 1 == speed:
