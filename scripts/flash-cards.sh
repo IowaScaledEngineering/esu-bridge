@@ -1,4 +1,7 @@
 #!/bin/bash
+
+RPI_IMAGE=rpi-esu-bridge-ro-20180708-a6d94c.img
+
 umount /dev/sdd1
 umount /dev/sde1
 umount /dev/sdf1
@@ -14,11 +17,11 @@ umount /dev/sdh2
 umount /dev/sdi2
 umount /dev/sdj2
 
-dd if=rpi-esu-bridge-ro-20180630-a96e7c.img of=/dev/sdd &
-dd if=rpi-esu-bridge-ro-20180630-a96e7c.img of=/dev/sde &
-dd if=rpi-esu-bridge-ro-20180630-a96e7c.img of=/dev/sdf &
-dd if=rpi-esu-bridge-ro-20180630-a96e7c.img of=/dev/sdg &
-dd if=rpi-esu-bridge-ro-20180630-a96e7c.img of=/dev/sdh &
-dd if=rpi-esu-bridge-ro-20180630-a96e7c.img of=/dev/sdi &
-dd if=rpi-esu-bridge-ro-20180630-a96e7c.img of=/dev/sdj &
+dd if=$RPI_IMAGE of=/dev/sdd &
+dd if=$RPI_IMAGE of=/dev/sde &
+dd if=$RPI_IMAGE of=/dev/sdf &
+dd if=$RPI_IMAGE of=/dev/sdg &
+dd if=$RPI_IMAGE of=/dev/sdh &
+dd if=$RPI_IMAGE of=/dev/sdi &
+dd if=$RPI_IMAGE of=/dev/sdj &
 
