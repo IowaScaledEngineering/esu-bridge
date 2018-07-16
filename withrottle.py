@@ -17,7 +17,23 @@
 #   but WITHOUT ANY WARRANTY; without even the implied warranty of
 #   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #   GNU General Public License for more details.
-# 
+#
+# License: BSD 3-Clause license for the lomond module
+#
+# LICENSE:
+# Copyright (c) 2017, WildFoundry Ltd (UK Company No: 08045924) All rights reserved.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY 
+#  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT #NOT LIMITED TO, THE IMPLIED WARRANTIES
+#  OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
+#  SHALL THE #COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+#  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
+#  TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; 
+#  OR BUSINESS INTERRUPTION) #HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
+#  IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
+#  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
+#  POSSIBILITY OF SUCH DAMAGE.
+#
 # DESCRIPTION:
 #   This class provides a client to connect to a Digitrax LNWI
 #   adapter.  The standard WiThrottle driver cannot be used because
@@ -27,6 +43,8 @@
 
 import socket
 import time
+from lomond import WebSocket
+import thread
 
 class WiThrottleConnection:
    """A client object to talk to a JMRI WiFi Throttle server or compatible.  
@@ -68,23 +86,35 @@ class WiThrottleConnection:
       self.ip = ip
       self.port = port
       self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-      self.conn.settimeout(0.01)
+      """Set the socket timeout relatively large for the initial connect since they take awhile"""
+      self.conn.settimeout(0.5)
       self.conn.connect((self.ip, self.port))
       self.recvData = ""
       self.rxtx("NProtoThrottle Bridge\n")
       self.rxtx("HUProtoThrottle Bridge\n")
       self.activeThrottles = { }
       print "%s Connect: complete" % (self.operatingMode)
+      """Set the timeout for the socket r/w operations small to prevent blocking too long on receives."""
+      self.conn.settimeout(0.01)
 
 
    def disconnect(self):
       print "%s Disconnect: Shutting down %s interface\n" % (self.operatingMode, self.operatingMode)
       """Shut down all throttle socket connections and disconnect from the WiThrottle server in a clean way."""
       for cabID,mtID in self.activeThrottles.iteritems():
-         self.rxtx("M%1.1s-*<;>r\n" % (mtID))
+         try:
+           self.rxtx("M%1.1s-*<;>r\n" % (mtID))
+         except:
+           print "In disconnect, write fails, socket must be dead"
          time.sleep(0.1)
-      self.rxtx("Q\n")
-      self.conn.close()
+      try:
+        self.rxtx("Q\n")
+      except: 
+        print "Socket probably went away rudely"
+      try:
+        self.conn.close()
+      except Exception as e: 
+        print "Socket close error", e
       self.activeThrottles = { }
       self.recvData = ""
       print "%s Disconnect: Disconnected" % (self.operatingMode)
@@ -300,6 +330,48 @@ class WiThrottleConnection:
       else:
          self.rxtx(None)
 
+class JMRIClock:
+   """class provides for JMRI clock retrieval via websocket interface for transmission to the protothrottle"""
+   def __init__(self):
+      """Constructor for the object.  Any internal initialization should occur here."""
+      self.timetext = ""
 
-   
-   
+   def monitorTime(self, threadname, websocket):
+        for event in websocket.connect(ping_rate=7):
+#            print "event received->", (event)
+            if event.name == "ready":
+               websocket.send_json({'type' : 'time'})             
+            elif event.name == "text":
+               timedict = event.json
+               if timedict.get("type","none") == "time":
+                  self.timetext = timedict.get("data", "nodata").get("time", "nodata")
+#                  print "In monitorTime, timetext=%s" % (self.timetext)
+            elif event.name == "connect_fail":
+               try:
+                  raise ValueError("JMRI Websocket connection failure, check that it is running on the right port") 
+               except ValueError as e:
+                  print e
+               
+   def connect(self, ipaddr, port):
+      self.jmriwebsocket = WebSocket("ws://%s:%d/json/" % (ipaddr, port))
+      print "Starting websocket thread for JMRI time retrieval"
+      thread.start_new_thread(self.monitorTime, ("timeMon", self.jmriwebsocket))
+
+   def disconnect(self):
+      self.jmriwebsocket.close()
+
+   def getHours(self):
+      
+      index = self.timetext.find("T")
+      if index == -1:
+         return 99
+      else:
+         return int(self.timetext[index+1:index+3])
+
+   def getMinutes(self):
+      index = self.timetext.find("T")
+      if index == -1:
+         return 99
+      else:
+         return int(self.timetext[index+4:index+6])
+
