@@ -348,7 +348,7 @@ while 1:
             
             if operatingMode == "JMRI" and useJMRIClock == True:
                print "Instantiating JMRI websocket interface for clock retrieval on port %d" % webPort
-               timeSource = withrottle.JMRIClock()
+               timeSource = withrottle.JMRIClock(timeZoneOffset)
                try:
                   timeSource.connect(foundIP, webPort)
                except ValueError:
@@ -430,10 +430,7 @@ while 1:
             statusPacket = [ ord('v'), 0x80, gitver[2], gitver[1], gitver[0], 1, 0 ] + getInterfaceTypeByteArray(bridgeTypeStr)
             mrbee.sendpkt(0xFF, statusPacket)
             if operatingMode == "JMRI" and useJMRIClock == True: 
-               try:
-                  hrs = timeSource.getHours() + timeZoneOffset
-               except:
-                  hrs = timeSource.getHours()
+               hrs = timeSource.getHours()
                min = timeSource.getMinutes()
 #               print "JMRI timeSource reports hrs=%d, min=%d" % (hrs, min)
                timePacket = [ ord('T'), 0, 0, 0, 1, hrs, min, 0, 0, 0, 0 ,0 ,0 ]

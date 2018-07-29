@@ -330,11 +330,12 @@ class WiThrottleConnection:
       else:
          self.rxtx(None)
 
-class JMRIClock:
+class JMRIClock():
    """class provides for JMRI clock retrieval via websocket interface for transmission to the protothrottle"""
-   def __init__(self):
+   def __init__(self, timeZoneOffset):
       """Constructor for the object.  Any internal initialization should occur here."""
       self.timetext = ""
+      self.offset = int(timeZoneOffset)
 
    def monitorTime(self, threadname, websocket):
         for event in websocket.connect(ping_rate=7):
@@ -360,13 +361,12 @@ class JMRIClock:
    def disconnect(self):
       self.jmriwebsocket.close()
 
-   def getHours(self):
-      
+   def getHours(self):      
       index = self.timetext.find("T")
       if index == -1:
          return 99
       else:
-         return int(self.timetext[index+1:index+3])
+         return int((int(self.timetext[index+1:index+3]) + self.offset) % 24)
 
    def getMinutes(self):
       index = self.timetext.find("T")
