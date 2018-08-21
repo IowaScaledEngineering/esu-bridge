@@ -48,6 +48,8 @@ import mrbus
 import MRBusThrottle
 import netUtils
 
+import JMRIClock
+
 import datetime
 
 statusInterval = 1
@@ -74,6 +76,12 @@ ptPktTimeout = 4000
 dccConnectionMode = ""
 serverIP = None
 serverPort = None
+
+# These are for the JMRI websocket for fast clock connections
+useJMRIClock = False
+webPort = None
+timeZoneOffset = None
+
 
 def getMillis():
    return time.time() * 1000.0
@@ -213,6 +221,25 @@ while 1:
             print "Server Port not set by configuration file"
             serverPort is None
 
+         try:
+            if 0 != int(parser.get("configuration", "useJMRIClock")):
+               useJMRIClock = True
+         except Exception as e:
+            print "Flag to use the JMRI clock is not in the configuration file"
+            useJMRIClock = False
+
+         try:
+            webPort = int(parser.get("configuration", "webPort"))
+         except Exception as e:
+            print "JMRI websocket Port not set by configuration file"
+            webPort is None
+
+         try:
+            timeZoneOffset = int(parser.get("configuration", "timeZoneOffset"))
+         except Exception as e:
+            print "JMRI timezone offset not set by configuration file"
+            timeZoneOffset is None
+
       except Exception as e:
          print "Yikes!  Exception reading configuration file"
          print e
@@ -312,6 +339,17 @@ while 1:
             if serverPort is None:
                serverPort = 12090  # Default for WiThrottle / LNWI
 
+            # JMRI Fast Clocks only work with true JMRI
+            if operatingMode is not "JMRI":
+               useJMRIClock = False
+
+            if useJMRIClock is True:
+               if webPort is None:
+                  webPort = 12080  # Default for JMRI websocket interface
+
+               if timeZoneOffset is None:
+                  timeZoneOffset = -4  # Default for EDT
+
             foundIP = serverIP
             if foundIP is None:
                foundIP = serverFind(searchDelay, serverPort, mrbee)
@@ -324,6 +362,14 @@ while 1:
             print "PT-BRIDGE: Trying %s server connection" % (operatingMode)
             cmdStn = withrottle.WiThrottleConnection()
             cmdStn.connect(foundIP, serverPort, operatingMode)
+            
+            if useJMRIClock == True:
+               print "Instantiating JMRI websocket interface for clock retrieval on port %d" % webPort
+               timeSource = JMRIClock.JMRIClock(timeZoneOffset)
+               try:
+                  timeSource.connect(foundIP, webPort)
+               except ValueError:
+                  continue
 
          else:
             print "PT-BRIDGE: No configured DCC system type - halting"
@@ -368,6 +414,7 @@ while 1:
    # Main Run Loop - runs until something weird happens
    while 1:
       try:
+
          currentMillis = getMillis()
          
          if currentMillis > (lastErrorTime + 500) and errorLightOn:
@@ -399,6 +446,12 @@ while 1:
 #            print "Sending status packet"
             statusPacket = [ ord('v'), 0x80, gitver[2], gitver[1], gitver[0], 1, 0 ] + getInterfaceTypeByteArray(bridgeTypeStr)
             mrbee.sendpkt(0xFF, statusPacket)
+            if operatingMode == "JMRI" and useJMRIClock == True: 
+               hrs = timeSource.getHours()
+               min = timeSource.getMinutes()
+#               print "JMRI timeSource reports hrs=%d, min=%d" % (hrs, min)
+               timePacket = [ ord('T'), 0, 0, 0, 1, hrs, min, 0, 0, 0, 0 ,0 ,0 ]
+               mrbee.sendpkt(0xFF, timePacket)
             lastStatusTime = time.time()
 
          cmdStn.update()
