@@ -59,7 +59,7 @@ def get_ip():
       s.close()
    return IP
 
-def testPort(ip, port, timeout=0.01):
+def testPort(ip, port, timeout=0.05):
    """Tests a given ip and port to see if there's something listening.  Returns True if there is."""
    try:
       s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

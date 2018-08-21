@@ -187,6 +187,9 @@ while 1:
                operatingMode = "LNWI"
                withrottleConnection = True
                bridgeTypeStr = "LNWINET"
+               # LNWIs default to being 192.168.7.1 and port 12090 - no need to search
+               serverIP = "192.168.7.1"
+               serverPort = 12090
             else:
                print "Connection mode [%s] invalid, defaulting to ESU WiFi" % (dccConnectionMode) 
                esuConnection = True
@@ -197,7 +200,7 @@ while 1:
             esuConnection = True
             withrottleConnection = False
             bridgeTypeStr = "ESU#NET"
-            
+         
          try:
             serverIP = parser.get("configuration", "serverIP")
          except Exception as e:
