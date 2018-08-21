@@ -68,23 +68,35 @@ class WiThrottleConnection:
       self.ip = ip
       self.port = port
       self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-      self.conn.settimeout(0.01)
+      """Set the socket timeout relatively large for the initial connect since they take awhile"""
+      self.conn.settimeout(0.5)
       self.conn.connect((self.ip, self.port))
       self.recvData = ""
       self.rxtx("NProtoThrottle Bridge\n")
       self.rxtx("HUProtoThrottle Bridge\n")
       self.activeThrottles = { }
       print "%s Connect: complete" % (self.operatingMode)
+      """Set the timeout for the socket r/w operations small to prevent blocking too long on receives."""
+      self.conn.settimeout(0.01)
 
 
    def disconnect(self):
       print "%s Disconnect: Shutting down %s interface\n" % (self.operatingMode, self.operatingMode)
       """Shut down all throttle socket connections and disconnect from the WiThrottle server in a clean way."""
       for cabID,mtID in self.activeThrottles.iteritems():
-         self.rxtx("M%1.1s-*<;>r\n" % (mtID))
+         try:
+           self.rxtx("M%1.1s-*<;>r\n" % (mtID))
+         except:
+           print "In disconnect, write fails, socket must be dead"
          time.sleep(0.1)
-      self.rxtx("Q\n")
-      self.conn.close()
+      try:
+        self.rxtx("Q\n")
+      except: 
+        print "Socket probably went away rudely"
+      try:
+        self.conn.close()
+      except Exception as e: 
+        print "Socket close error", e
       self.activeThrottles = { }
       self.recvData = ""
       print "%s Disconnect: Disconnected" % (self.operatingMode)
@@ -301,5 +313,3 @@ class WiThrottleConnection:
          self.rxtx(None)
 
 
-   
-   
