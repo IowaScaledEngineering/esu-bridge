@@ -1,5 +1,5 @@
 # *************************************************************************
-# Title:    Client for WiThrottle-based Clients (JMRI, Digitrax LNWI, maybe MRC Wifi)
+# Title:    Client for WiThrottle-based Clients (JMRI, Digitrax LNWI, MRC Wifi)
 # Authors:  Nathan D. Holmes <maverick@drgw.net>
 #           Michael D. Petersen <railfan@drgw.net>
 # File:     withrottle.py
@@ -18,26 +18,9 @@
 #   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #   GNU General Public License for more details.
 #
-# License: BSD 3-Clause license for the lomond module
-#
-# LICENSE:
-# Copyright (c) 2017, WildFoundry Ltd (UK Company No: 08045924) All rights reserved.
-#
-#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY 
-#  EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT #NOT LIMITED TO, THE IMPLIED WARRANTIES
-#  OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT
-#  SHALL THE #COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-#  INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED
-#  TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; 
-#  OR BUSINESS INTERRUPTION) #HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
-#  IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) 
-#  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE 
-#  POSSIBILITY OF SUCH DAMAGE.
-#
 # DESCRIPTION:
-#   This class provides a client to connect to a Digitrax LNWI
-#   adapter.  The standard WiThrottle driver cannot be used because
-#   Digitrax only chose to implement a subset of the JMRI protocol.
+#   This class provides a client to connect to clients that speak the
+#   JMRI Wifi Throttle (WiThrottle) protocol and close derivatives (Digitrax LNWI)
 # 
 # *************************************************************************
 
@@ -47,7 +30,7 @@ import time
 class WiThrottleConnection:
    """A client object to talk to a JMRI WiFi Throttle server or compatible.  
       This class is capable of handling multiple locomotives simultaneously via
-      independent socket connections."""
+      the multithrottle interface and its ability to multiplex throttles."""
 
    conn = None
    activeThrottles = { }
@@ -262,7 +245,6 @@ class WiThrottleConnection:
       direction = int(direction)
 
       print "%s locomotiveSpeedSet(%d): set speed %d %s" % (self.operatingMode, objID['locoNum'], speed, ["FWD","REV"][direction])
-
       
       if direction != 0 and direction != 1:
          speed = 0
@@ -318,7 +300,7 @@ class WiThrottleConnection:
 
    def update(self):
       """This should be called frequently within the main program loop.  This implements the keepalive heartbeat
-         within the WiThrottle protocol... badly.  Right now it's hard-wired to 10 seconds."""
+         within the WiThrottle protocol."""
       heartbeatInterval = (self.heartbeatMaxInterval / 2)
       if heartbeatInterval < 1:
          heartbeatInterval = 1
