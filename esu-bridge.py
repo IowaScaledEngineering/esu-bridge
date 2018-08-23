@@ -448,10 +448,13 @@ while 1:
             mrbee.sendpkt(0xFF, statusPacket)
             if operatingMode == "JMRI" and useJMRIClock == True: 
                hrs = timeSource.getHours()
-               min = timeSource.getMinutes()
+               mins = timeSource.getMinutes()
+               
 #               print "JMRI timeSource reports hrs=%d, min=%d" % (hrs, min)
-               timePacket = [ ord('T'), 0, 0, 0, 1, hrs, min, 0, 0, 0, 0 ,0 ,0 ]
-               mrbee.sendpkt(0xFF, timePacket)
+               if ( hrs >= 0 and hrs < 24 and mins >= 0 and mins < 60 ):
+                  timePacket = [ ord('T'), 0, 0, 0, 1, hrs, mins, 0, 0, 0, 0 ,0 ,0 ]
+                  mrbee.sendpkt(0xFF, timePacket)
+
             lastStatusTime = time.time()
 
          cmdStn.update()

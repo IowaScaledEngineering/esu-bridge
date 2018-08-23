@@ -34,14 +34,15 @@ class JMRIClock():
 
    def monitorTime(self, threadname, websocket):
         for event in websocket.connect(ping_rate=7):
-#            print "event received->", (event)
+            #print "event received->%s [%s]" % (event, event.name)
             if event.name == "ready":
-               websocket.send_json({'type' : 'time'})             
+               websocket.send_json(type='time', data='')
             elif event.name == "text":
                timedict = event.json
+#               print "json received: %s\n" % (event.json)
                if timedict.get("type","none") == "time":
                   self.timetext = timedict.get("data", "nodata").get("time", "nodata")
-#                  print "In monitorTime, timetext=%s" % (self.timetext)
+                  print "JMRI sent time = [%s]" % (self.timetext)
             elif event.name == "connect_fail":
                try:
                   raise ValueError("JMRI Websocket connection failure, check that it is running on the right port") 
@@ -49,7 +50,7 @@ class JMRIClock():
                   print e
                
    def connect(self, ipaddr, port):
-      self.jmriwebsocket = WebSocket("ws://%s:%d/json/" % (ipaddr, port))
+      self.jmriwebsocket = WebSocket("ws://%s:%d/json/time" % (ipaddr, port))
       print "Starting websocket thread for JMRI time retrieval"
       thread.start_new_thread(self.monitorTime, ("timeMon", self.jmriwebsocket))
 
