@@ -1,1 +1,1 @@
-sudo iwlist wlx002522428f3d scan | ./iw_parse
+sudo iwlist wlan0 scan | ./iw_parse
