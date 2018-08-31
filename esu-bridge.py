@@ -305,6 +305,7 @@ while 1:
          # First, test if we have a network.  If we don't, blink
          # both the server connection and error LEDs
          haveNetwork = False
+         haveNetworkCounter = 0
          while haveNetwork is not True:
             defaultIP = netUtils.get_ip()
             o1,o2,o3,o4 = defaultIP.split('.')
@@ -316,9 +317,12 @@ while 1:
                time.sleep(0.5)
                mrbee.setXbeeLED('D6', False);
                mrbee.setXbeeLED('D8', False);
-               time.sleep(0.5)
-               if debugWireless:
-                  netUtils.showWirelessNetworks()
+               if haveNetworkCounter < 5:
+                  time.sleep(0.5)
+               else:
+                  haveNetworkCounter = 0
+                  if debugWireless:
+                     netUtils.showWirelessNetworks()
 
             else:
                 print "PT-BRIDGE: Found network (%d.%d.%d.255)" % (int(o1), int(o2), int(o3))
