@@ -40,7 +40,7 @@ import traceback
 import socket
 import argparse
 import ConfigParser
-
+import os
 import esu
 import withrottle
 
@@ -67,6 +67,7 @@ args = ap.parse_args()
 cmdStn = None
 mrbee = None
 
+debugWireless = False
 esuConnection = True
 withrottleConnection = False
 
@@ -175,6 +176,13 @@ while 1:
             print "Setting packet timeout to %d milliseconds" % (ptPktTimeout)
          except:
             ptPktTimeout = 4000
+
+         try:
+            dw = parser.getint("configuration", "debugWireless")
+            if 0 != dw:
+               debugWireless = True
+         except:
+            debugWireless = False
 
          try:
             dccConnectionMode = parser.get("configuration", "mode")
@@ -309,6 +317,9 @@ while 1:
                mrbee.setXbeeLED('D6', False);
                mrbee.setXbeeLED('D8', False);
                time.sleep(0.5)
+               if debugWireless:
+                  netUtils.showWirelessNetworks()
+
             else:
                 print "PT-BRIDGE: Found network (%d.%d.%d.255)" % (int(o1), int(o2), int(o3))
                 haveNetwork = True

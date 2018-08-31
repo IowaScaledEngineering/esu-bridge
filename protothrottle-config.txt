@@ -11,30 +11,32 @@ mode = lnwi
 baseAddress = 0
 
 # searchDelay is the time, in seconds, to scan each IP for the appropriate server
-searchDelay = 0.05
+searchDelay = 0.10
 
 # packetTimeout is the number of milliseconds 
 packetTimeout = 4000
 
 # serverIP specifies which IP the bridge will connect to
 #  Leave commented out for automatic search and find
-#serverIP = 192.168.7.1
+#serverIP = 192.168.7.149
 
 # serverPort specifies which port the server is listening on
 #  Leave commented out for the default 15471 on ESU or 12090 on WiThrottle
 #serverPort = 12090
+
+debugWireless = 1
 
 #######################
 # JMRI Fast Clock Configuration
 
 # UseJMRIClock is True or False depending on whether one wants to enable the fast
 # clock display of JMRI maintained clock values on the protothrottle display.
-#useJMRIClock = 1
+useJMRIClock = 1
 
 # webPort specifies the port used by JMRI web server.  This used to retrieve
 # the fastclock if enabled above with useJMRIClock = True
-#webPort = 12080
+webPort = 12080
 
 # timeZoneOffset is the hours from UTC to set local time on the fast clock show on the display
 # JMRI sends time in UTC only.
-#timeZoneOffset = -4
+timeZoneOffset = -6

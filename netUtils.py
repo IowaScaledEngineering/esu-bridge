@@ -70,6 +70,10 @@ def testPort(ip, port, timeout=0.05):
    except(socket.timeout,socket.error):
       return False
 
-
+def showWirelessNetworks():
+   p = subprocess.Popen("./print-wifi-scan.sh", shell=True, stdout=subprocess.PIPE)
+   (output, err) = p.communicate()
+   p_status = p.wait()
+   print output
 
 
