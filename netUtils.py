@@ -75,5 +75,9 @@ def showWirelessNetworks():
    (output, err) = p.communicate()
    p_status = p.wait()
    print output
-
+   cmd = "ifconfig wlan0"
+   p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+   (output, err) = p.communicate()
+   p_status = p.wait()
+   print output
 

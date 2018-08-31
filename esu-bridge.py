@@ -319,6 +319,7 @@ while 1:
                mrbee.setXbeeLED('D8', False);
                if haveNetworkCounter < 5:
                   time.sleep(0.5)
+                  haveNetworkCounter = haveNetworkCounter + 1
                else:
                   haveNetworkCounter = 0
                   if debugWireless:
