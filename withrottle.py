@@ -225,6 +225,10 @@ class WiThrottleConnection:
             break
          time.sleep(0.01)
 
+      # Turn on track power if it's off for some reason
+      if self.trackPowerOn == False:
+         self.rxtx("PPA1\n")
+
       return objID
          
    def locomotiveFunctionsGet(self, objID):
