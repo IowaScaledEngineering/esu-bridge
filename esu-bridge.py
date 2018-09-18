@@ -66,10 +66,9 @@ args = ap.parse_args()
 
 cmdStn = None
 mrbee = None
-
+operatingMode = "ESU"
 esuConnection = True
 withrottleConnection = False
-
 gitver = [ 0x00, 0x00, 0x00 ]
 bridgeTypeStr = "UNKNOWN"
 ptPktTimeout = 4000
@@ -183,6 +182,7 @@ while 1:
 
             if dccConnectionMode == "esu":
                print "Setting connection to ESU WiFi"
+               operatingMode = "ESU"
                esuConnection = True
                bridgeTypeStr = "ESUENET"
             elif dccConnectionMode == "withrottle":
@@ -200,6 +200,7 @@ while 1:
                serverPort = 12090
             else:
                print "Connection mode [%s] invalid, defaulting to ESU WiFi" % (dccConnectionMode) 
+               operatingMode = "ESU"
                esuConnection = True
                bridgeTypeStr = "ESU*NET"
          except Exception as e:
