@@ -74,7 +74,32 @@ class ESUConnection:
    def esuTXRX(self, cmdStr, parseRE=None, resultKey=''):
       """Internal shared function for transacting with the command station."""
       self.conn.send(cmdStr)
-      resp = self.conn.recv(self.ESU_RCV_SZ)
+      resp = ""
+      done = false
+      startingLine = 1
+      while (!done):
+         resp += self.conn.recv(self.ESU_RCV_SZ)
+         # Find the response
+         lines = resp.splitlines()
+         numLines = len(lines)
+         
+         # evaluate each line to see where the start of the reply is - typically it'll be line 0
+         while (startingLine-1 < numLines and lines[startingLine-1] != ("<REPLY %s>" % (cmdStr))):
+            print "ESU:  Line %d [%s] was not start of reply to [%s], skipping" % (startingLine-1, lines[startingLine-1], cmdStr)
+            startingLine += 1
+         
+         # See if we have an end token yet
+         
+         if (lines[numDataElements-1] != "<END 0 (OK)>"):
+            print "ESU: Got an error back, parsing..."
+
+
+
+         if (lines[0] != "<REPLY %s>" % (cmdStr)):
+            print "ESU: YIKES!  Reply malformed!"
+
+
+
       # Find the response
       lines = resp.splitlines()
       numDataElements = len(lines)
