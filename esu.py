@@ -31,6 +31,7 @@
 
 import socket
 import re
+import time
 
 class ESUConnection:
    """An interface to talk to an ESU CabControl command station via the network in order to
@@ -39,11 +40,13 @@ class ESUConnection:
 
    # Define a few constants - the ESU port is always 15471
    ESU_PORT = 15471
-   ESU_RCV_SZ = 1024
+   ESU_RCV_SZ = 2048
 
    # Some pre-compiled regexs used in response parsing
    REglobalList = re.compile("(?P<objID>\d+)\s+addr\[(?P<locAddr>\d+)\].*")
    RElocAdd = re.compile("10\s+id\[(?P<objID>\d+)\].*")
+   REend = re.compile("<END (?P<errCd>\d+) \((?P<errStr>[a-zA-Z0-9 ]+)\)>.*") 
+   #REend = re.compile("<.*") #END.*")# (?P<errCd>\d+) .*") #\((?P<errStr>[a-zA-Z0-9 ]+)\)>.*") 
    
    def __init__(self):
       """Constructor for the object.  Any internal initialization should occur here."""
@@ -56,7 +59,9 @@ class ESUConnection:
       print "ESU Trying to connect to %s on port %d" % (ip, port)
       try:
          self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+         self.conn.settimeout(0.5)
          self.conn.connect((ip, port))
+         self.conn.settimeout(0.01)
          print "ESU Command station connection succeeded"
       except:
          print "ESU Command station connection failed"
@@ -73,41 +78,84 @@ class ESUConnection:
       
    def esuTXRX(self, cmdStr, parseRE=None, resultKey=''):
       """Internal shared function for transacting with the command station."""
+      print "ESU: Sending command [%s]" % (cmdStr)
       self.conn.send(cmdStr)
       resp = ""
-      done = false
-      startingLine = 1
-      while (!done):
-         resp += self.conn.recv(self.ESU_RCV_SZ)
+      done = False
+      newresp = ""
+      newlines = []
+      recvLoops = 0
+      
+      while not done:
+         startingLine = None
+         endingLine = None
+         recvLoops += 1
+
+         try:
+            resp += self.conn.recv(self.ESU_RCV_SZ)
+         except socket.timeout:
+            pass         
+
          # Find the response
          lines = resp.splitlines()
          numLines = len(lines)
          
          # evaluate each line to see where the start of the reply is - typically it'll be line 0
-         while (startingLine-1 < numLines and lines[startingLine-1] != ("<REPLY %s>" % (cmdStr))):
-            print "ESU:  Line %d [%s] was not start of reply to [%s], skipping" % (startingLine-1, lines[startingLine-1], cmdStr)
-            startingLine += 1
-         
-         # See if we have an end token yet
-         
-         if (lines[numDataElements-1] != "<END 0 (OK)>"):
-            print "ESU: Got an error back, parsing..."
+         i = 0
+         while (i < numLines):
+            if lines[i] != ("<REPLY %s>" % (cmdStr)):
+               print "ESU:  Line %d [%s] was not start of reply to [%s], skipping" % (i, lines[i], cmdStr)
+               i += 1
+            else:
+               startingLine = i
+               print "ESU: Found start of response at line %d" % (startingLine)
+               break
 
+         if recvLoops > 75:
+            print "ESU: TIMEOUT on receiving, going on with life"
+            print "ESU: current recv lines [%s]" % (lines)
+            break
 
+         # Haven't found a start?  Keep waiting
+         if startingLine is None:
+            continue
 
-         if (lines[0] != "<REPLY %s>" % (cmdStr)):
-            print "ESU: YIKES!  Reply malformed!"
+         i = 0
+         # Look for the last line in this response
+         for i in range(startingLine, numLines):
+            try:
+               results = self.REend.match(lines[i])
+               if results is None:
+                  continue
+               
+               errorCode = results.groupdict()
+               endingLine = i
+               print "Found end token at line %d [%s]" % (endingLine, lines[endingLine])
+               errCd = int(errorCode['errCd'])
+               if 0 != errCd:
+                  print "Got end with err code %d and message [%s]" % (errCd, errorCode['errStr'])
+               else:
+                  newlines = lines[startingLine:endingLine+1]
+               break
+               
+            except Exception as e:
+               print "ESU: End Regex match exception"
+               print e
+               continue
 
+         if startingLine is not None and endingLine is not None:
+            break
 
+         print "Haven't found the end yet - last line is [%s]" % (lines[numLines-1])
+            
+      print "Response = [%s]" % newlines
 
       # Find the response
-      lines = resp.splitlines()
+      lines = newlines
       numDataElements = len(lines)
-      if (lines[0] != "<REPLY %s>" % (cmdStr)):
-         print "ESU: YIKES!  Reply malformed!"
-      if (lines[numDataElements-1] != "<END 0 (OK)>"):
-         print "ESU: Got an error back, parsing..."
-      
+      if numDataElements == 0:
+         return { }
+   
       if parseRE is None:
          return {}
       
@@ -127,13 +175,15 @@ class ESUConnection:
 
    def esuLocomotiveAdd(self, locoNum, locoName=""):
       """Internal function for adding a locomotive to the command station's object table."""
+      print "ESU: Adding locomotive address [%d]" % (int(locoNum))
       cmdStr = "create(10, addr[%d], append)" % ( int(locoNum))
       result = self.esuTXRX(cmdStr, self.RElocAdd)
+      print "ESU: Locomotive added at objID [%d]" % (result[0]['objID'])
       return int(result[0]['objID'])
 
    def locomotiveObjectGet(self, locoNum, cabID, isLongAddress):
       """Acquires and returns a handle that will be used to control a locomotive address."""
-      print "ESU locomotiveObjectGet(%d, 0x%02X)" % (locoNum, cabID)
+      print "ESU: locomotiveObjectGet(%d, 0x%02X)" % (locoNum, cabID)
       
       cmdStr = "queryObjects(10,addr)"
       locoList = self.esuTXRX(cmdStr, self.REglobalList, 'locAddr')
@@ -142,12 +192,12 @@ class ESUConnection:
       
       if locAddr in locoList.keys():
          objID = int(locoList[locAddr]['objID'])
-         print "Found locomotive %s at object %d" % (locAddr, objID)
+         print "ESU: Found locomotive %s at object %d" % (locAddr, objID)
          return objID
       else:
-         print "Need to add this locomotive"
+         print "ESU: Need to add this locomotive"
          objID = self.esuLocomotiveAdd(locoNum)
-         print "Added locomotive %s at object %d" % (locAddr, objID)
+         print "ESU: Added locomotive %s at object %d" % (locAddr, objID)
          return objID
          
    def locomotiveEmergencyStop(self, objID):
@@ -173,9 +223,9 @@ class ESUConnection:
          speed = 0
 
       cmdStr = "set(%d, speed[%d], dir[%d])" % (objID, speed, direction)
+      print "ESU: locomotiveSpeedSet(%d): set speed %d %s" % (objID, speed, ["FWD","REV"][direction])
       self.esuTXRX(cmdStr)
-      
-      print "ESU locomotiveSpeedSet(%d): set speed %d %s" % (objID, speed, ["FWD","REV"][direction])
+      print "ESU: locomotiveSpeedSet complete"
    
    def locomotiveFunctionSet(self, objID, funcNum, funcVal):
       """Sets or clears a function on a locomotive via a handle that has been previously acquired with locomotiveObjectGet().  
@@ -183,9 +233,10 @@ class ESUConnection:
       objID = int(objID)
       funcNum = int(funcNum)
       funcVal = int(funcVal)
-     
+      print "ESU: object %d set function %d to %d" % (int(objID), funcNum, funcVal)
       cmdStr = "set(%d, func[%d,%d])" % (objID, funcNum, funcVal)
-      self.esuTXRX(cmdStr)   
+      self.esuTXRX(cmdStr)
+      print "ESU: function set complete"
 
    def locomotiveFunctionDictSet(self, objID, funcDict):
       """Don't use this!  An effort to set multiple functions at a time that doesn't really work yet."""

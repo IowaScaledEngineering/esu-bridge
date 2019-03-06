@@ -373,27 +373,29 @@ while 1:
             mrbee.setXbeeLED('D6', errorLightOn)
 
          if currentMillis > ( lastPktTime + 4000) and pktLightOn:
-            print "Turning ProtoThrottle received LED off"
+            print "PT-BRIDGE: Turning ProtoThrottle received LED off"
             pktLightOn = False
             mrbee.setXbeeLED('D7', pktLightOn)
 
-         if (currentMillis > (lastPingTime + 5000)):
+         if (currentMillis > (lastPingTime + 5000) and not esuConnection):
+             print "PT-BRIDGE: Trying to ping command station"
              pingSuccess = False
              pingRetries = 0
              while pingSuccess is not True and pingRetries < 3:
-                pingSuccess = pingSuccess or  netUtils.ping(foundIP)
-                pingRetries = pingRetries + 1
+                pingSuccess = pingSuccess or netUtils.ping(foundIP)
+                pingRetries += 1
 
              if pingSuccess is not True:
                  raise Exception("Server unreachable")
              
              lastPingTime = currentMillis
+             print "PT-BRIDGE: Ping command station successful"
              
 
          pkt = mrbee.getpkt()
 
          if time.time() > lastStatusTime + statusInterval:
-#            print "Sending status packet"
+            #print "PT-BRIDGE: Sending status packet"
             statusPacket = [ ord('v'), 0x80, gitver[2], gitver[1], gitver[0], 1, 0 ] + getInterfaceTypeByteArray(bridgeTypeStr)
             mrbee.sendpkt(0xFF, statusPacket)
             lastStatusTime = time.time()
@@ -431,9 +433,10 @@ while 1:
          # Create a MRBusThrottle object for every new Protothrottle that shows up
          if pkt.src not in throttles:
             throttles[pkt.src] = MRBusThrottle.MRBusThrottle(pkt.src)
-      
+         #print "PT-BRIDGE: Processing packet from throttle %02X" % (pkt.src)
          throttles[pkt.src].update(cmdStn, pkt)
-
+         #print "PT-BRIDGE: Done processing packet from throttle %02X" % (pkt.src)
+         
          lastPktTime = getMillis()
          if False == pktLightOn:
             print "Turning ProtoThrottle packet received LED on"
