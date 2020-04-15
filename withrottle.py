@@ -68,7 +68,7 @@ class WiThrottleConnection:
       self.ip = ip
       self.port = port
       self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-      self.conn.settimeout(0.01)
+      self.conn.settimeout(0.5)
       self.conn.connect((self.ip, self.port))
       self.recvData = ""
       self.rxtx("NProtoThrottle Bridge\n")
