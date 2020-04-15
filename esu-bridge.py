@@ -75,7 +75,7 @@ ptPktTimeout = 4000
 dccConnectionMode = ""
 serverIP = None
 serverPort = None
-
+pingServer = True
 # These are for the JMRI websocket for fast clock connections
 useJMRIClock = False
 webPort = None
@@ -221,6 +221,15 @@ while 1:
          except Exception as e:
             print "Server Port not set by configuration file"
             serverPort is None
+            
+         try:
+            pingServerInt = parser.getint("configuration", "disableServerPing")
+            if pingServerInt != 0:
+              pingServer = False
+              print "Disabling dead server ping detection"
+         except:
+            pingServer = True
+
 
          try:
             if 0 != int(parser.get("configuration", "useJMRIClock")):
@@ -428,7 +437,7 @@ while 1:
             pktLightOn = False
             mrbee.setXbeeLED('D7', pktLightOn)
 
-         if (currentMillis > (lastPingTime + 5000)):
+         if pingServer is True and (currentMillis > (lastPingTime + 5000)):
              pingSuccess = False
              pingRetries = 0
              while pingSuccess is not True and pingRetries < 3:
