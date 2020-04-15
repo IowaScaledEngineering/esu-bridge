@@ -68,7 +68,7 @@ class WiThrottleConnection:
       self.port = port
       self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
       """Set the socket timeout relatively large for the initial connect since they take awhile"""
-      self.conn.settimeout(0.5)
+      self.conn.settimeout(5)
       self.conn.connect((self.ip, self.port))
       self.recvData = ""
       self.rxtx("NProtoThrottle Bridge\n")
