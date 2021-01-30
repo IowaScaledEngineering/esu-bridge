@@ -39,7 +39,7 @@ class ESUConnection:
 
    # Define a few constants - the ESU port is always 15471
    ESU_PORT = 15471
-   ESU_RCV_SZ = 1024
+   ESU_RCV_SZ = 8192
 
    # Some pre-compiled regexs used in response parsing
    REglobalList = re.compile("(?P<objID>\d+)\s+addr\[(?P<locAddr>\d+)\].*")
@@ -58,6 +58,7 @@ class ESUConnection:
          self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
          self.conn.connect((ip, port))
          print "ESU Command station connection succeeded"
+         self.conn.settimeout(5)
       except:
          print "ESU Command station connection failed"
       
@@ -73,30 +74,59 @@ class ESUConnection:
       
    def esuTXRX(self, cmdStr, parseRE=None, resultKey=''):
       """Internal shared function for transacting with the command station."""
+      # Flush connection buffer
+
+
       self.conn.send(cmdStr)
-      resp = self.conn.recv(self.ESU_RCV_SZ)
-      # Find the response
-      lines = resp.splitlines()
-      numDataElements = len(lines)
-      if (lines[0] != "<REPLY %s>" % (cmdStr)):
-         print "ESU: YIKES!  Reply malformed!"
-      if (lines[numDataElements-1] != "<END 0 (OK)>"):
-         print "ESU: Got an error back, parsing..."
-      
-      if parseRE is None:
-         return {}
-      
+      print("ESU: Sent command [%s]" % (cmdStr))
+
+      responseComplete = False
+      responseStartFound = False
+      commandResponse = []
       results = { }
-      for idx in range(1, numDataElements-1):
+            
+      # Need to hold here until we get a full response or we timeout
+      while not responseComplete:
+         resp = self.conn.recv(self.ESU_RCV_SZ)
+         # Find the response
+         lines = resp.splitlines()
+         numDataElements = len(lines)
+         for i in range(0, numDataElements):
+            thisLine = lines[i]
+            if not responseStartFound:
+               if thisLine == ("<REPLY %s>" % (cmdStr)):
+                  print("ESU: Found start line - [%s]" % (thisLine))
+                  responseStartFound = True
+                  commandResponse.append(thisLine)
+               else:
+                  print("ESU: No start tag - throwing away line [%s]" % (thisLine))
+            else:
+               print("Adding line to response [%s]" % (thisLine))
+               commandResponse.append(thisLine)
+               if thisLine == "<END 0 (OK)>":
+                  print("Found end line [%s]" % (thisLine))
+                  responseComplete = True
+               
+
+      if not responseComplete:
+         print("ESU: Response to command failed")
+         return results
+
+      if parseRE is None:
+         return results
+
+      print("ESU: Parsing results")
+
+      for idx in range(1, len(commandResponse)-1):
          try:
-            parsed = parseRE.match(lines[idx])
+            parsed = parseRE.match(commandResponse[idx])
 
             if resultKey == "":
                results[len(results)] = parsed.groupdict()
             else:
                results[parsed.group(resultKey)] = parsed.groupdict()
          except:
-            print "ESU esuRXTX Line %d does not match regex\n  Line %d: '%s'" % (idx, idx, lines[idx])
+            print("ESU esuRXTX Line %d does not match regex\n  Line %d: [%s]" % (idx, idx, commandResponse[idx]))
 
       return results
 
@@ -108,7 +138,7 @@ class ESUConnection:
 
    def locomotiveObjectGet(self, locoNum, cabID, isLongAddress):
       """Acquires and returns a handle that will be used to control a locomotive address."""
-      print "ESU locomotiveObjectGet(%d, 0x%02X)" % (locoNum, cabID)
+      print("ESU locomotiveObjectGet(%d, 0x%02X)" % (locoNum, cabID))
       
       cmdStr = "queryObjects(10,addr)"
       locoList = self.esuTXRX(cmdStr, self.REglobalList, 'locAddr')
