@@ -75,7 +75,7 @@ ptPktTimeout = 4000
 dccConnectionMode = ""
 serverIP = None
 serverPort = None
-pingServer = True
+pingServer = False
 # These are for the JMRI websocket for fast clock connections
 useJMRIClock = False
 webPort = None
@@ -228,7 +228,15 @@ while 1:
               pingServer = False
               print "Disabling dead server ping detection"
          except:
-            pingServer = True
+            pingServer = False
+
+         try:
+            pingServerInt = parser.getint("configuration", "enableServerPing")
+            if pingServerInt != 0:
+              pingServer = True
+              print "Enabling dead server ping detection"
+         except:
+            pass
 
 
          try:
