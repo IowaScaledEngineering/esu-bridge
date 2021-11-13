@@ -1,5 +1,5 @@
 # *************************************************************************
-# Title:    Client for WiThrottle-based Clients (JMRI, Digitrax LNWI, maybe MRC Wifi)
+# Title:    Client for WiThrottle-based Clients (JMRI, Digitrax LNWI, MRC Wifi)
 # Authors:  Nathan D. Holmes <maverick@drgw.net>
 #           Michael D. Petersen <railfan@drgw.net>
 # File:     withrottle.py
@@ -17,11 +17,10 @@
 #   but WITHOUT ANY WARRANTY; without even the implied warranty of
 #   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #   GNU General Public License for more details.
-# 
+#
 # DESCRIPTION:
-#   This class provides a client to connect to a Digitrax LNWI
-#   adapter.  The standard WiThrottle driver cannot be used because
-#   Digitrax only chose to implement a subset of the JMRI protocol.
+#   This class provides a client to connect to clients that speak the
+#   JMRI Wifi Throttle (WiThrottle) protocol and close derivatives (Digitrax LNWI)
 # 
 # *************************************************************************
 
@@ -31,7 +30,7 @@ import time
 class WiThrottleConnection:
    """A client object to talk to a JMRI WiFi Throttle server or compatible.  
       This class is capable of handling multiple locomotives simultaneously via
-      independent socket connections."""
+      the multithrottle interface and its ability to multiplex throttles."""
 
    conn = None
    activeThrottles = { }
@@ -68,23 +67,35 @@ class WiThrottleConnection:
       self.ip = ip
       self.port = port
       self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-      self.conn.settimeout(0.5)
+      """Set the socket timeout relatively large for the initial connect since they take awhile"""
+      self.conn.settimeout(5)
       self.conn.connect((self.ip, self.port))
       self.recvData = ""
       self.rxtx("NProtoThrottle Bridge\n")
       self.rxtx("HUProtoThrottle Bridge\n")
       self.activeThrottles = { }
       print "%s Connect: complete" % (self.operatingMode)
+      """Set the timeout for the socket r/w operations small to prevent blocking too long on receives."""
+      self.conn.settimeout(0.01)
 
 
    def disconnect(self):
       print "%s Disconnect: Shutting down %s interface\n" % (self.operatingMode, self.operatingMode)
       """Shut down all throttle socket connections and disconnect from the WiThrottle server in a clean way."""
       for cabID,mtID in self.activeThrottles.iteritems():
-         self.rxtx("M%1.1s-*<;>r\n" % (mtID))
+         try:
+           self.rxtx("M%1.1s-*<;>r\n" % (mtID))
+         except:
+           print "In disconnect, write fails, socket must be dead"
          time.sleep(0.1)
-      self.rxtx("Q\n")
-      self.conn.close()
+      try:
+        self.rxtx("Q\n")
+      except: 
+        print "Socket probably went away rudely"
+      try:
+        self.conn.close()
+      except Exception as e: 
+        print "Socket close error", e
       self.activeThrottles = { }
       self.recvData = ""
       print "%s Disconnect: Disconnected" % (self.operatingMode)
@@ -214,6 +225,10 @@ class WiThrottleConnection:
             break
          time.sleep(0.01)
 
+      # Turn on track power if it's off for some reason
+      if self.trackPowerOn == False:
+         self.rxtx("PPA1\n")
+
       return objID
          
    def locomotiveFunctionsGet(self, objID):
@@ -234,7 +249,6 @@ class WiThrottleConnection:
       direction = int(direction)
 
       print "%s locomotiveSpeedSet(%d): set speed %d %s" % (self.operatingMode, objID['locoNum'], speed, ["FWD","REV"][direction])
-
       
       if direction != 0 and direction != 1:
          speed = 0
@@ -290,7 +304,7 @@ class WiThrottleConnection:
 
    def update(self):
       """This should be called frequently within the main program loop.  This implements the keepalive heartbeat
-         within the WiThrottle protocol... badly.  Right now it's hard-wired to 10 seconds."""
+         within the WiThrottle protocol."""
       heartbeatInterval = (self.heartbeatMaxInterval / 2)
       if heartbeatInterval < 1:
          heartbeatInterval = 1
@@ -301,5 +315,3 @@ class WiThrottleConnection:
          self.rxtx(None)
 
 
-   
-   

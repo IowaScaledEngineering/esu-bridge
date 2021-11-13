@@ -48,6 +48,8 @@ import mrbus
 import MRBusThrottle
 import netUtils
 
+import JMRIClock
+
 import datetime
 
 statusInterval = 1
@@ -64,16 +66,21 @@ args = ap.parse_args()
 
 cmdStn = None
 mrbee = None
-
+operatingMode = "ESU"
 esuConnection = True
 withrottleConnection = False
-
 gitver = [ 0x00, 0x00, 0x00 ]
 bridgeTypeStr = "UNKNOWN"
 ptPktTimeout = 4000
 dccConnectionMode = ""
 serverIP = None
 serverPort = None
+pingServer = False
+# These are for the JMRI websocket for fast clock connections
+useJMRIClock = False
+webPort = None
+timeZoneOffset = None
+
 
 def getMillis():
    return time.time() * 1000.0
@@ -175,6 +182,7 @@ while 1:
 
             if dccConnectionMode == "esu":
                print "Setting connection to ESU WiFi"
+               operatingMode = "ESU"
                esuConnection = True
                bridgeTypeStr = "ESUENET"
             elif dccConnectionMode == "withrottle":
@@ -187,8 +195,12 @@ while 1:
                operatingMode = "LNWI"
                withrottleConnection = True
                bridgeTypeStr = "LNWINET"
+               # LNWIs default to being 192.168.7.1 and port 12090 - no need to search
+               serverIP = "192.168.7.1"
+               serverPort = 12090
             else:
                print "Connection mode [%s] invalid, defaulting to ESU WiFi" % (dccConnectionMode) 
+               operatingMode = "ESU"
                esuConnection = True
                bridgeTypeStr = "ESU*NET"
          except Exception as e:
@@ -197,7 +209,7 @@ while 1:
             esuConnection = True
             withrottleConnection = False
             bridgeTypeStr = "ESU#NET"
-            
+         
          try:
             serverIP = parser.get("configuration", "serverIP")
          except Exception as e:
@@ -209,6 +221,42 @@ while 1:
          except Exception as e:
             print "Server Port not set by configuration file"
             serverPort is None
+            
+         try:
+            pingServerInt = parser.getint("configuration", "disableServerPing")
+            if pingServerInt != 0:
+              pingServer = False
+              print "Disabling dead server ping detection"
+         except:
+            pingServer = False
+
+         try:
+            pingServerInt = parser.getint("configuration", "enableServerPing")
+            if pingServerInt != 0:
+              pingServer = True
+              print "Enabling dead server ping detection"
+         except:
+            pass
+
+
+         try:
+            if 0 != int(parser.get("configuration", "useJMRIClock")):
+               useJMRIClock = True
+         except Exception as e:
+            print "Flag to use the JMRI clock is not in the configuration file"
+            useJMRIClock = False
+
+         try:
+            webPort = int(parser.get("configuration", "webPort"))
+         except Exception as e:
+            print "JMRI websocket Port not set by configuration file"
+            webPort is None
+
+         try:
+            timeZoneOffset = int(parser.get("configuration", "timeZoneOffset"))
+         except Exception as e:
+            print "JMRI timezone offset not set by configuration file"
+            timeZoneOffset is None
 
       except Exception as e:
          print "Yikes!  Exception reading configuration file"
@@ -309,6 +357,17 @@ while 1:
             if serverPort is None:
                serverPort = 12090  # Default for WiThrottle / LNWI
 
+            # JMRI Fast Clocks only work with true JMRI
+            if operatingMode is not "JMRI":
+               useJMRIClock = False
+
+            if useJMRIClock is True:
+               if webPort is None:
+                  webPort = 12080  # Default for JMRI websocket interface
+
+               if timeZoneOffset is None:
+                  timeZoneOffset = -4  # Default for EDT
+
             foundIP = serverIP
             if foundIP is None:
                foundIP = serverFind(searchDelay, serverPort, mrbee)
@@ -321,6 +380,14 @@ while 1:
             print "PT-BRIDGE: Trying %s server connection" % (operatingMode)
             cmdStn = withrottle.WiThrottleConnection()
             cmdStn.connect(foundIP, serverPort, operatingMode)
+            
+            if useJMRIClock == True:
+               print "Instantiating JMRI websocket interface for clock retrieval on port %d" % webPort
+               timeSource = JMRIClock.JMRIClock(timeZoneOffset)
+               try:
+                  timeSource.connect(foundIP, webPort)
+               except ValueError:
+                  continue
 
          else:
             print "PT-BRIDGE: No configured DCC system type - halting"
@@ -365,6 +432,7 @@ while 1:
    # Main Run Loop - runs until something weird happens
    while 1:
       try:
+
          currentMillis = getMillis()
          
          if currentMillis > (lastErrorTime + 500) and errorLightOn:
@@ -377,8 +445,7 @@ while 1:
             pktLightOn = False
             mrbee.setXbeeLED('D7', pktLightOn)
 
-         if (currentMillis > (lastPingTime + 5000) and not esuConnection):
-             print "PT-BRIDGE: Trying to ping command station"
+         if pingServer is True and (currentMillis > (lastPingTime + 5000)):
              pingSuccess = False
              pingRetries = 0
              while pingSuccess is not True and pingRetries < 3:
@@ -398,6 +465,15 @@ while 1:
             #print "PT-BRIDGE: Sending status packet"
             statusPacket = [ ord('v'), 0x80, gitver[2], gitver[1], gitver[0], 1, 0 ] + getInterfaceTypeByteArray(bridgeTypeStr)
             mrbee.sendpkt(0xFF, statusPacket)
+            if operatingMode == "JMRI" and useJMRIClock == True: 
+               hrs = timeSource.getHours()
+               mins = timeSource.getMinutes()
+               
+#               print "JMRI timeSource reports hrs=%d, min=%d" % (hrs, min)
+               if ( hrs >= 0 and hrs < 24 and mins >= 0 and mins < 60 ):
+                  timePacket = [ ord('T'), 0, 0, 0, 1, hrs, mins, 0, 0, 0, 0 ,0 ,0 ]
+                  mrbee.sendpkt(0xFF, timePacket)
+
             lastStatusTime = time.time()
 
          cmdStn.update()

@@ -40,7 +40,7 @@ class ESUConnection:
 
    # Define a few constants - the ESU port is always 15471
    ESU_PORT = 15471
-   ESU_RCV_SZ = 2048
+   ESU_RCV_SZ = 8192
 
    # Some pre-compiled regexs used in response parsing
    REglobalList = re.compile("(?P<objID>\d+)\s+addr\[(?P<locAddr>\d+)\].*")
@@ -63,6 +63,7 @@ class ESUConnection:
          self.conn.connect((ip, port))
          self.conn.settimeout(0.01)
          print "ESU Command station connection succeeded"
+         self.conn.settimeout(5)
       except:
          print "ESU Command station connection failed"
       
@@ -78,98 +79,59 @@ class ESUConnection:
       
    def esuTXRX(self, cmdStr, parseRE=None, resultKey=''):
       """Internal shared function for transacting with the command station."""
-      print "ESU: Sending command [%s]" % (cmdStr)
+      # Flush connection buffer
+
+
       self.conn.send(cmdStr)
-      resp = ""
-      done = False
-      newresp = ""
-      newlines = []
-      recvLoops = 0
-      
-      while not done:
-         startingLine = None
-         endingLine = None
-         recvLoops += 1
+      print("ESU: Sent command [%s]" % (cmdStr))
 
-         try:
-            resp += self.conn.recv(self.ESU_RCV_SZ)
-         except socket.timeout:
-            pass         
-
+      responseComplete = False
+      responseStartFound = False
+      commandResponse = []
+      results = { }
+            
+      # Need to hold here until we get a full response or we timeout
+      while not responseComplete:
+         resp = self.conn.recv(self.ESU_RCV_SZ)
          # Find the response
          lines = resp.splitlines()
-         numLines = len(lines)
-         
-         # evaluate each line to see where the start of the reply is - typically it'll be line 0
-         i = 0
-         while (i < numLines):
-            if lines[i] != ("<REPLY %s>" % (cmdStr)):
-               print "ESU:  Line %d [%s] was not start of reply to [%s], skipping" % (i, lines[i], cmdStr)
-               i += 1
-            else:
-               startingLine = i
-               print "ESU: Found start of response at line %d" % (startingLine)
-               break
-
-         if recvLoops > 75:
-            print "ESU: TIMEOUT on receiving, going on with life"
-            print "ESU: current recv lines [%s]" % (lines)
-            break
-
-         # Haven't found a start?  Keep waiting
-         if startingLine is None:
-            continue
-
-         i = 0
-         # Look for the last line in this response
-         for i in range(startingLine, numLines):
-            try:
-               results = self.REend.match(lines[i])
-               if results is None:
-                  continue
-               
-               errorCode = results.groupdict()
-               endingLine = i
-               print "Found end token at line %d [%s]" % (endingLine, lines[endingLine])
-               errCd = int(errorCode['errCd'])
-               if 0 != errCd:
-                  print "Got end with err code %d and message [%s]" % (errCd, errorCode['errStr'])
+         numDataElements = len(lines)
+         for i in range(0, numDataElements):
+            thisLine = lines[i]
+            if not responseStartFound:
+               if thisLine == ("<REPLY %s>" % (cmdStr)):
+                  print("ESU: Found start line - [%s]" % (thisLine))
+                  responseStartFound = True
+                  commandResponse.append(thisLine)
                else:
-                  newlines = lines[startingLine:endingLine+1]
-               break
+                  print("ESU: No start tag - throwing away line [%s]" % (thisLine))
+            else:
+               print("Adding line to response [%s]" % (thisLine))
+               commandResponse.append(thisLine)
+               if thisLine == "<END 0 (OK)>":
+                  print("Found end line [%s]" % (thisLine))
+                  responseComplete = True
                
-            except Exception as e:
-               print "ESU: End Regex match exception"
-               print e
-               continue
 
-         if startingLine is not None and endingLine is not None:
-            break
+      if not responseComplete:
+         print("ESU: Response to command failed")
+         return results
 
-         print "Haven't found the end yet - last line is [%s]" % (lines[numLines-1])
-            
-      print "Response = [%s]" % newlines
-
-      # Find the response
-      lines = newlines
-      numDataElements = len(lines)
-      if numDataElements == 0:
-         return { }
-   
       if parseRE is None:
-         return {}
-      
-      results = { }
-      for idx in range(1, numDataElements-1):
+         return results
+
+      print("ESU: Parsing results")
+
+      for idx in range(1, len(commandResponse)-1):
          try:
-            parsed = parseRE.match(lines[idx])
+            parsed = parseRE.match(commandResponse[idx])
 
             if resultKey == "":
                results[len(results)] = parsed.groupdict()
             else:
                results[parsed.group(resultKey)] = parsed.groupdict()
          except:
-            print "ESU esuRXTX Line %d does not match regex\n  Line %d: '%s'" % (idx, idx, lines[idx])
+            print("ESU esuRXTX Line %d does not match regex\n  Line %d: [%s]" % (idx, idx, commandResponse[idx]))
 
       return results
 
@@ -183,7 +145,7 @@ class ESUConnection:
 
    def locomotiveObjectGet(self, locoNum, cabID, isLongAddress):
       """Acquires and returns a handle that will be used to control a locomotive address."""
-      print "ESU: locomotiveObjectGet(%d, 0x%02X)" % (locoNum, cabID)
+      print("ESU: locomotiveObjectGet(%d, 0x%02X)" % (locoNum, cabID))
       
       cmdStr = "queryObjects(10,addr)"
       locoList = self.esuTXRX(cmdStr, self.REglobalList, 'locAddr')
