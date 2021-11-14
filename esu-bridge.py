@@ -496,7 +496,7 @@ while 1:
             mrbee.setXbeeLED('D6', errorLightOn)
 
          # Bypass anything that doesn't look like a throttle packet
-         if pkt.cmd != 0x53 or len(pkt.data) != 10 or baseAddress != pkt.dest:
+         if pkt.cmd != 0x53 or len(pkt.data) != 9 or baseAddress != pkt.dest:
             continue
 
          # Create a MRBusThrottle object for every new Protothrottle that shows up

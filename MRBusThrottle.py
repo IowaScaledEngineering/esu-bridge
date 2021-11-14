@@ -52,7 +52,7 @@ class MRBusThrottle:
       
    
    def update(self, cmdStn, pkt):
-      if pkt.cmd != 0x53 or len(pkt.data) != 10:  # Not a status update, bump out
+      if pkt.cmd != 0x53 or len(pkt.data) != 9:  # Not a status update, bump out
          return
       
       # print "MRBusThrottle (0x%02X): UPDATE loco %d" % (self.throttleAddr, self.locAddr)
