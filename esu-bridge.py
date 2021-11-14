@@ -222,14 +222,6 @@ while 1:
             serverPort is None
             
          try:
-            pingServerInt = parser.getint("configuration", "disableServerPing")
-            if pingServerInt != 0:
-              pingServer = False
-              print("Disabling dead server ping detection")
-         except:
-            pingServer = False
-
-         try:
             pingServerInt = parser.getint("configuration", "enableServerPing")
             if pingServerInt != 0:
               pingServer = True
@@ -307,7 +299,7 @@ while 1:
          else:
             print("PT-BRIDGE: Trying to start XBee / MRBus on port %s" % xbeePort)
 
-         mrbee = mrbus.mrbus(xbeePort, baseAddress, logall=True, logfile=sys.stdout, busType='mrbee')
+         mrbee = mrbus.mrbus(xbeePort, baseAddress, busType='mrbee')
 
          mrbee.setXbeeLED('D9', True);
 

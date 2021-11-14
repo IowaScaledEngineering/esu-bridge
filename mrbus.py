@@ -29,6 +29,7 @@
 # *************************************************************************
 
 import serial
+import logging
 import time
 from collections import deque
 import sys
@@ -50,12 +51,12 @@ class packet(object):
     return "mrbus.packet(0x%02x, 0x%02x, 0x%02x, %s)"%(self.dest, self.src, self.cmd, repr(self.data))
 
   def __str__(self):
-    c='(%02xh'%self.cmd
+    c='(0x%02X'%self.cmd
     if self.cmd >= 32 and self.cmd <= 127:
       c+=" '%c')"%self.cmd
     else:
       c+="    )"
-    return "packet(%02xh->%02xh) %s %2d:%s"%(self.src, self.dest, c, len(self.data), ["%02xh"%d for d in self.data])
+    return "packet(0x%02X->0x%02X) %s %2d:%s"%(self.src, self.dest, c, len(self.data), ["0x%02X"%d for d in self.data])
 
 class node(object):
   def __init__(self, mrb, addr):
@@ -97,46 +98,37 @@ class node(object):
 
 
 class mrbusSimple(object):
-  def __init__(self, port, addr, logfile=None, logall=False, extra=False):
+  def __init__(self, port, addr, logger=None, extra=False):
 
     if type(port)==str:
       port = serial.Serial(port, 115200, timeout=.1, rtscts=True)
 
     self.serial = port
-
+    self.rxBuffer = bytearray()
     time.sleep(.1)
     while port.inWaiting():
       port.read(port.inWaiting())
-    port.write(':CMD NS=00;\r')
+    port.write(b':CMD NS=00;\r')
     if extra:
-      port.write(':CMD MM=00;\r')
+      port.write(b':CMD MM=00;\r')
     else:
-      port.write(':CMD MM=01;\r')
+      port.write(b':CMD MM=01;\r')
   
     port.timeout=0
 
     self.pktlst=[]
 
-    self.logfile=logfile
-    self.logall=logall
-    self.log(0, "instantiated mrbusSimple from %s"%port.name)
+    self.logger = logger
+    if logger is None:
+      self.logger = logging.getLogger('mrbus')
+    
+    self.logger.info("Instantiated mrbusSimple from %s" % (port.name))
 
     self.addr=addr
 #    self.buf=deque()
 
   def disconnect(self):
      self.serial.close()
-
-  def log(self, error, msg):
-    if not self.logfile:
-      return
-    if not (error or self.logall):
-      return
-    if error:
-      s="Error:"
-    else:
-      s="  log:"
-    self.logfile.write(s+repr(msg)+'\n')
 
 #needs timeout functionality
 #  def readline(self)
@@ -152,28 +144,40 @@ class mrbusSimple(object):
 #    return self.linebuf.leftpop()
 
 
+# This is ugly, but now works in Python3
+# Probably needs to be revisited and fixed up
   def getpkt(self):
-    l = self.serial.readline()
-#      self.readline()
-    if not l:
-      return None
-    if l[-1] != '\n' and l[-1] != '\r':
-      self.log(1, '<<<'+l)
-      return None
-    l2=l.strip()
-    if l2 == 'Ok':
-      self.log(0, '<<<'+l)
-      return None
-    if len(l2)<2 or l2[0]!='P' or l2[1]!=':':
-      self.log(1, '<<<'+l)
-      return None
-    d=[int(v,16) for v in l2[2:].split()]
-    if len(d)<6 or len(d)!=d[2]:
-      self.log(1, '<<<'+l)
-      return None
-    self.log(0, '<<<'+l)
-    return packet(d[0], d[1], d[5], d[6:])
 
+    while True:
+      incoming = self.serial.read()
+      if incoming is None or len(incoming) == 0:
+        break
+       
+      incomingBytes = bytearray(incoming).strip(b'\r')
+      self.rxBuffer = self.rxBuffer + incomingBytes
+       
+    if b'\n' in self.rxBuffer:
+      # We've got complete lines, do something with them
+      eolIdx = self.rxBuffer.index(b'\n')
+      cmdStr = str(self.rxBuffer[0:eolIdx].decode('utf-8')).strip()
+      self.rxBuffer = self.rxBuffer[eolIdx+1:]
+      #print("Found command [%s]" % cmdStr)
+
+      if cmdStr == "Ok":
+        return None
+      
+      if len(cmdStr)<2 or cmdStr[0:2] != 'P:':
+        self.logger.error('E3<<<'+cmdStr)
+        return None
+
+      d=[int(v,16) for v in cmdStr[2:].split()]
+      if len(d)<6 or len(d)!=d[2]:
+        self.logger.error('E4<<<'+cmdStr)
+        return None
+      
+      return packet(d[0], d[1], d[5], d[6:])
+
+    return None
 
   def sendpkt(self, dest, data, src=None):
     if src == None:
@@ -184,16 +188,17 @@ class mrbusSimple(object):
         d=ord(d)
       s+=" %02X"%(d&0xff)
     s+=";\r"
-    self.log(0, '>>>'+s)
+    self.logger.debug('>>>MRBUS ' +s)
     self.serial.write(s)
 
 
 class mrbeeSimple(object):
-  def __init__(self, port, addr, logfile=None, logall=False, extra=False):
+  def __init__(self, port, addr, logger=None, extra=False):
 
     self.rxBuffer = []
     self.rxExcapeNext = 0
     self.rxProcessing = 0
+    self.leds = { 'D6':False, 'D7':False, 'D8':False, 'D9':False }
 
     if type(port)==str:
       port = serial.Serial(port, 115200, timeout=.1, rtscts=True, stopbits=serial.STOPBITS_TWO)
@@ -208,26 +213,18 @@ class mrbeeSimple(object):
 
     self.pktlst=[]
 
-    self.logfile=logfile
-    self.logall=logall
-    self.log(0, "instantiated mrbeeSimple from %s" % port.name)
+    self.logger = logger
+    if logger is None:
+      self.logger = logging.getLogger('mrbus')
+
+    self.logger.info("Instantiated mrbeeSimple from %s" % port.name)
+
     self.addr=addr
-    
+   
     self.setLED('D6', False)
     self.setLED('D7', False)
     self.setLED('D8', False)
     self.setLED('D9', False)
-
-  def log(self, error, msg):
-    if not self.logfile:
-      return
-    if not (error or self.logall):
-      return
-    if error:
-      s="Error:"
-    else:
-      s="  log:"
-    self.logfile.write(s+repr(msg)+'\n')
 
   def disconnect(self):
     try:  # These very well might fail if the port went away
@@ -235,18 +232,20 @@ class mrbeeSimple(object):
        self.setLED('D7', False)
        self.setLED('D8', False)
        self.setLED('D9', False)  
+       time.sleep(0.1)
     except:
        pass
     self.serial.close()
 
   def getpkt(self):
 
-    while 1:
+    while True:
        incomingStr = self.serial.read()
        if incomingStr is None or len(incomingStr) == 0:
           break
        
-       incomingByte = ord(incomingStr[0])
+       #incomingByte = ord(incomingStr[0])
+       incomingByte = 0xFF & incomingStr[0]
        if 0x7E == incomingByte:
 #          self.log(0, "mrbee starting new packet")
           self.rxBuffer = [ incomingByte ]
@@ -284,7 +283,7 @@ class mrbeeSimple(object):
                                
              if 0xFF != pktChecksum:
                 # Error, conintue
-                self.log(0, "mrbee - checksum error - checksum is %02X" % (pktChecksum))
+                self.logger.error("mrbee - checksum error - checksum is %02X" % (pktChecksum))
                 continue      
 
              if 0x80 == self.rxBuffer[3]:
@@ -302,9 +301,14 @@ class mrbeeSimple(object):
 #                for i in range(0, self.rxExpectedPktLen-1):
 #                   print "Byte %02d: 0x%02X" % (i-pktDataOffset, self.rxBuffer[i])
              
-             return packet(self.rxBuffer[pktDataOffset + 0], self.rxBuffer[pktDataOffset + 1], self.rxBuffer[pktDataOffset + 5], self.rxBuffer[(pktDataOffset + 6):])
+             return packet(self.rxBuffer[pktDataOffset + 0], self.rxBuffer[pktDataOffset + 1], self.rxBuffer[pktDataOffset + 5], self.rxBuffer[(pktDataOffset + 6):-1])
 
     return None
+
+  def getLED(self, ledRefdes):
+     if ledRefdes not in self.leds:
+        return False
+     return self.leds[ledRefdes]
 
   def setLED(self, ledRefdes, ledState):
 #     if ledState:
@@ -317,7 +321,11 @@ class mrbeeSimple(object):
 
      if ledRefdes not in pins:
        return
-
+     if type(ledState) is not bool:
+       return
+     
+     self.leds[ledRefdes] = ledState
+     
      txBuffer = [ ]
      txBuffer.append(0x7E)          # 0 - Start 
      txBuffer.append(0x00)          # 1 - Len MSB
@@ -452,46 +460,65 @@ class mrbus(object):
   def disconnect(self):
      self.mrbs.disconnect()
 
-  def __init__(self, port, addr=None, logfile=None, logall=False, extra=False, busType='mrbus'):
+  def __init__(self, port, addr=None, logger=None, extra=False, busType='mrbus'):
     if type(port)==str:
       if busType == 'mrbus':
-         port = serial.Serial(port, 115200, rtscts=True)
+         port = serial.Serial(port, 115200, rtscts=True, timeout=.1)
       elif busType == 'mrbee':
-         port = serial.Serial(port, 115200, rtscts=True, stopbits=serial.STOPBITS_TWO)
+         port = serial.Serial(port, 115200, rtscts=True, stopbits=serial.STOPBITS_TWO, timeout=.1)
+
+    self.logger = logger
+    if self.logger is None:
+       self.logger = logging.getLogger("mrbus")
+       self.logger.setLevel(logging.DEBUG)
+     
 
     if busType == 'mrbus':
-       self.mrbs = mrbusSimple(port, addr, logfile, logall, extra)
+       self.mrbs = mrbusSimple(port, addr, logger, extra)
        self.busType = 'mrbus'
        
     elif busType == 'mrbee':
-       self.mrbs = mrbeeSimple(port, addr, logfile, logall, extra)
+       self.mrbs = mrbeeSimple(port, addr, logger, extra)
        self.busType = 'mrbee'
 
     self.pktlst=[]
     self.handlern=0
     self.handlers=[]
+    self.fakeLEDs={'D6':False, 'D7':False, 'D8':False, 'D9':False}
 
-    self.mrbs.log(0, "instantiated %s from %s" % (self.busType, port.name))
+    self.mrbs.logger.info("mrbus object instantiated [%s] from [%s]" % (self.busType, port.name))
 
     #find an address to use
     if addr==None:
-      self.mrbs.log(0, "finding address to use")
-      for addr in range(254, 0, -1):
+      self.mrbs.logger.info("finding address to use")
+      for addr in xrange(254, 0, -1):
         found = self.testnode(addr, replyto=0xff)
         if not found:
           break
       if found:
-        self.mrbs.log(1, "no available address found to use")
+        self.mrbs.logger.error("no available address found to use")
         raise Exception("no available address found to use")
      
     self.addr=addr
     self.mrbs.addr=addr
 
-    self.mrbs.log(0, "using address %d" % addr)
+    self.mrbs.logger.info("using address %d" % (addr))
 
   def setXbeeLED(self, ledRefdes, ledState):
     if self.busType == 'mrbee':
       self.mrbs.setLED(ledRefdes, ledState)
+    else:
+      if ledState is bool:
+        self.fakeLEDs[ledRefdes] = ledState
+
+  def getXbeeLED(self, ledRefdes):
+    if self.busType == 'mrbee':
+      return self.mrbs.getLED(ledRefdes)
+    else:
+      if ledRefdes in self.fakeLEDs:
+        return self.fakeLEDs[ledRefdes]
+      else:
+        return False
 
   def sendpkt(self, addr, data, src=None):
     self.mrbs.sendpkt(addr, data, src)
@@ -504,7 +531,7 @@ class mrbus(object):
 
   def install(self, handler, where=-1):
     #interpret index differently than list.insert().  -1 is at end, 0 is at front
-    self.mrbs.log(0, "install handler")
+    self.mrbs.logger.info("mrbus install handler")
     if where<0:
       if where == -1:
         where = len(self.handlers)
@@ -516,7 +543,7 @@ class mrbus(object):
     self.handlers.insert(where, (hint, handler))
 
   def remove(self, hint):
-    self.mrbs.log(0, "remove handler")
+    self.mrbs.logger.info("mrbus remove handler")
     self.handlers = [h for h in self.handlers if h[0]!=hint]
 
 
