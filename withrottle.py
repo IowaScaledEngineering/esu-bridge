@@ -60,10 +60,10 @@ class WiThrottleConnection:
       elif mode == "LNWI":
          self.operatingMode = "LNWI"
       else:
-         print "Operating Mode [%s] not understood, defaulting to JMRI" % (mode)
+         print("Operating Mode [%s] not understood, defaulting to JMRI" % (mode))
          self.operatingMode = "JMRI"
          
-      print "%s Connect: Connecting to server [%s] port [%d]" % (self.operatingMode, ip, port)
+      print("%s Connect: Connecting to server [%s] port [%d]" % (self.operatingMode, ip, port))
       self.ip = ip
       self.port = port
       self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -74,31 +74,31 @@ class WiThrottleConnection:
       self.rxtx("NProtoThrottle Bridge\n")
       self.rxtx("HUProtoThrottle Bridge\n")
       self.activeThrottles = { }
-      print "%s Connect: complete" % (self.operatingMode)
+      print("%s Connect: complete" % (self.operatingMode))
       """Set the timeout for the socket r/w operations small to prevent blocking too long on receives."""
       self.conn.settimeout(0.01)
 
 
    def disconnect(self):
-      print "%s Disconnect: Shutting down %s interface\n" % (self.operatingMode, self.operatingMode)
+      print("%s Disconnect: Shutting down %s interface\n" % (self.operatingMode, self.operatingMode))
       """Shut down all throttle socket connections and disconnect from the WiThrottle server in a clean way."""
-      for cabID,mtID in self.activeThrottles.iteritems():
+      for cabID,mtID in self.activeThrottles.items():
          try:
            self.rxtx("M%1.1s-*<;>r\n" % (mtID))
          except:
-           print "In disconnect, write fails, socket must be dead"
+           print("In disconnect, write fails, socket must be dead")
          time.sleep(0.1)
       try:
         self.rxtx("Q\n")
       except: 
-        print "Socket probably went away rudely"
+        print("Socket probably went away rudely")
       try:
         self.conn.close()
       except Exception as e: 
-        print "Socket close error", e
+        print("Socket close error", e)
       self.activeThrottles = { }
       self.recvData = ""
-      print "%s Disconnect: Disconnected" % (self.operatingMode)
+      print("%s Disconnect: Disconnected" % (self.operatingMode))
 
    def parseIncomingData(self):
       # If there's no carriage returns, we don't have a complete response of any sort yet
@@ -146,7 +146,7 @@ class WiThrottleConnection:
          elif ('U' == resp[0:1]):  # Host controller name
             self.serverID = resp[1:]
          elif ('M' == resp[0:1]):  # Some sort of multithrottle response - parse this
-            print "%s RX: Multithrottle update [%s]" % (self.operatingMode, resp)
+            print("%s RX: Multithrottle update [%s]" % (self.operatingMode, resp))
             try:
                (throttle,cmd) = resp.split("<;>")
                if throttle[2:3] == 'S':
@@ -154,7 +154,7 @@ class WiThrottleConnection:
                   # The format of this undocumented command appears to be:
                   # MTSLxxxx<;>Lxxxx
                   # And the response to steal it is the same
-                  print "%s RX: Cab [%s] needs to steal locomotive [%s]\n" % (self.operatingMode, throttle[1:2], cmd)
+                  print("%s RX: Cab [%s] needs to steal locomotive [%s]\n" % (self.operatingMode, throttle[1:2], cmd))
                   cmdStr = resp
                   self.conn.sendall(cmdStr)
                   
@@ -163,22 +163,22 @@ class WiThrottleConnection:
                      funcNum = int(cmd[2:])
                      funcVal = int(cmd[1:2])
                      self.funcStatus[throttle[1:2]][funcNum] = funcVal
-                     print "%s RX: Cab [%s] set func %d to %d " % (self.operatingMode, throttle[1:2], funcNum, funcVal)
+                     print("%s RX: Cab [%s] set func %d to %d " % (self.operatingMode, throttle[1:2], funcNum, funcVal))
                      if funcNum == 28:
                         self.funcUpdated[throttle[1:2]] = True
                   
             except:
-               print "%s RX: Multithrottle packet exception" % (self.operatingMode)
+               print("%s RX: Multithrottle packet exception" % (self.operatingMode))
                
          else:
-            print "%s RX: Unknown host->client [%s]\n" % (self.operatingMode, resp)
+            print("%s RX: Unknown host->client [%s]\n" % (self.operatingMode, resp))
 
 
    def rxtx(self, cmdStr):
       """Internal shared function for transacting with the WiThrottle server."""
       if cmdStr is not None:
          self.lastUpdate = time.time()
-         print "%s TX: Sending [%s]" % (self.operatingMode, cmdStr[:-1])
+         print("%s TX: Sending [%s]" % (self.operatingMode, cmdStr[:-1]))
          self.conn.sendall(cmdStr)
          time.sleep(0.05)
       try:
@@ -196,12 +196,12 @@ class WiThrottleConnection:
    def locomotiveObjectGet(self, locoNum, cabID, isLongAddress=True):
       """Acquires and returns a handle that will be used to control a locomotive address.  This will release
          any locomotive that cabID was previously controlling."""
-      print "%s locomotiveObjectGet(%d, 0x%02X)" % (self.operatingMode, locoNum, cabID)
+      print("%s locomotiveObjectGet(%d, 0x%02X)" % (self.operatingMode, locoNum, cabID))
 
       if cabID not in self.activeThrottles:
          newThrottleLetter = self.getAvailableMultithrottleLetter()
          self.activeThrottles[cabID] = newThrottleLetter
-         print "%s locomotiveObjectGet: Added throttle letter [%s] for PT cab 0x%02X (loco %d)" % (self.operatingMode, newThrottleLetter, cabID, locoNum)
+         print("%s locomotiveObjectGet: Added throttle letter [%s] for PT cab 0x%02X (loco %d)" % (self.operatingMode, newThrottleLetter, cabID, locoNum))
 
       objID = {'addr':cabID, 'locoNum':locoNum, 'isLong':isLongAddress }
 
@@ -221,7 +221,7 @@ class WiThrottleConnection:
          self.rxtx(None)
          # Check if we've gotten the function statuses from the command station yet
          if self.funcUpdated[self.activeThrottles[cabID]] is True:
-            print "%s locomotiveObjectGet: Got func status for [%d] from LNWI" % (self.operatingMode, locoNum)
+            print("%s locomotiveObjectGet: Got func status for [%d] from LNWI" % (self.operatingMode, locoNum))
             break
          time.sleep(0.01)
 
@@ -232,13 +232,13 @@ class WiThrottleConnection:
       return objID
          
    def locomotiveFunctionsGet(self, objID):
-      print "%s locomotiveFunctionsGet(%d)" % (self.operatingMode, objID['locoNum'])
+      print("%s locomotiveFunctionsGet(%d)" % (self.operatingMode, objID['locoNum']))
       throttleLetter = self.activeThrottles[objID['addr']]
       return self.funcStatus[throttleLetter]
          
    def locomotiveEmergencyStop(self, objID):
       """Issues an emergency stop command to a locomotive handle that has been previously acquired with locomotiveObjectGet()."""
-      print "%s locomotiveEmergencyStop(%d)" % (self.operatingMode, objID['locoNum'])
+      print("%s locomotiveEmergencyStop(%d)" % (self.operatingMode, objID['locoNum']))
       self.rxtx("M%1.1sA*<;>X\n" % self.activeThrottles[objID['addr']])
 
    # For the purposes of this function, direction of 0=forward, 1=reverse
@@ -248,7 +248,7 @@ class WiThrottleConnection:
       speed = int(speed)
       direction = int(direction)
 
-      print "%s locomotiveSpeedSet(%d): set speed %d %s" % (self.operatingMode, objID['locoNum'], speed, ["FWD","REV"][direction])
+      print("%s locomotiveSpeedSet(%d): set speed %d %s" % (self.operatingMode, objID['locoNum'], speed, ["FWD","REV"][direction]))
       
       if direction != 0 and direction != 1:
          speed = 0
@@ -273,7 +273,7 @@ class WiThrottleConnection:
 
       # Thankfully, JMRI supports the "force function" ('f') command as described in the spec
       # so we can avoid all the nasties as we have in LNWI mode
-      print "JMRI locomotiveFunctionSet(%d): set func %d to %d" % (objID['locoNum'], funcNum, funcVal)
+      print("JMRI locomotiveFunctionSet(%d): set func %d to %d" % (objID['locoNum'], funcNum, funcVal))
       
       self.rxtx("M%1.1sA*<;>f%d%d\n" % (self.activeThrottles[objID['addr']], funcVal, funcNum))   
    
@@ -287,7 +287,7 @@ class WiThrottleConnection:
       funcNum = int(funcNum)
       funcVal = int(funcVal)
 
-      print "LNWI locomotiveFunctionSet(%d): set func %d to %d" % (objID['locoNum'], funcNum, funcVal)
+      print("LNWI locomotiveFunctionSet(%d): set func %d to %d" % (objID['locoNum'], funcNum, funcVal))
  
       if funcNum == 2:  # 2 is non-latching, all others are latching
          self.rxtx("M%1.1sA*<;>F%d%d\n" % (self.activeThrottles[objID['addr']], funcVal, funcNum))
@@ -297,7 +297,7 @@ class WiThrottleConnection:
             self.rxtx("M%1.1sA*<;>F0%d\n" % (self.activeThrottles[objID['addr']], funcNum) )
 
    def locomotiveDisconnect(self, objID):
-      print "%s locomotiveDisconnect(%d): disconnect" % (self.operatingMode, objID['locoNum'])
+      print("%s locomotiveDisconnect(%d): disconnect" % (self.operatingMode, objID['locoNum']))
       self.rxtx("M%1.1s-*<;>r\n" % (self.activeThrottles[objID['addr']]))
       del self.activeThrottles[objID['addr']]
 

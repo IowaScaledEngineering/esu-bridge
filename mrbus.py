@@ -476,7 +476,7 @@ class mrbus(object):
     #find an address to use
     if addr==None:
       self.mrbs.log(0, "finding address to use")
-      for addr in xrange(254, 0, -1):
+      for addr in range(254, 0, -1):
         found = self.testnode(addr, replyto=0xff)
         if not found:
           break
@@ -600,7 +600,7 @@ def mrbus_ex(ser):
   mrb = mrbus(ser)
 #  mrb = mrbus(ser, logall=True, logfile=sys.stderr)
   nodes = mrb.scannodes()
-  print 'nodes: '+', '.join(str(n) for n in nodes)
+  print('nodes: '+', '.join(str(n) for n in nodes))
 
 
 ###node example use:
@@ -614,9 +614,9 @@ def node_ex(ser):
   n.sendpkt(['V'])
   p=n.getpkt(timeout=3)
   if p:
-    print p
+    print(p)
   else:
-    print 'no packet returned'
+    print('no packet returned')
 
 
 ###mrbusSimple example use:
@@ -633,7 +633,7 @@ def mrbussimple_ex(ser):
       if p==None:
         break
       if p.src!=addr and p.src!=0 and p.src!=0xff:
-        print 'recieved reply from node:', p.src
+        print('recieved reply from node:', p.src)
 
 
 if __name__ == '__main__':

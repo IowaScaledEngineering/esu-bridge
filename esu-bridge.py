@@ -39,7 +39,7 @@ import time
 import traceback
 import socket
 import argparse
-import ConfigParser
+import configparser
 
 import esu
 import withrottle
@@ -112,7 +112,7 @@ def serverFind(timeout, port, mrbee):
    
    mrbee.setXbeeLED('D8', ledStatus);
    
-   print "PT-BRIDGE: Starting Scan on subnet (%s.%s.%s.255)" % (o1, o2, o3)
+   print("PT-BRIDGE: Starting Scan on subnet (%s.%s.%s.255)" % (o1, o2, o3))
    for i in range(0,254):
       scanIP = "%s.%s.%s.%d" % (o1, o2, o3, i)
       result = netUtils.testPort(scanIP, port, timeout)
@@ -121,7 +121,7 @@ def serverFind(timeout, port, mrbee):
           mrbee.setXbeeLED('D8', ledStatus);
       
       if result:
-         print "PT-BRIDGE: IP %s has port %d open - waiting a second for the ports to close" % (scanIP, port)
+         print("PT-BRIDGE: IP %s has port %d open - waiting a second for the ports to close" % (scanIP, port))
          
          # Wait a second - the LNWI responds poorly to quick subsequent connections
          for i in range(0, 4):
@@ -138,23 +138,23 @@ def serverFind(timeout, port, mrbee):
 # Big loop - runs as long as the program is alive
 while 1:
 
-   print ""
-   print "-----------------------------------------------"
-   print " STARTING CONFIG PHASE"
-   print ""
+   print("")
+   print("-----------------------------------------------")
+   print(" STARTING CONFIG PHASE")
+   print("")
    
    if args.config is not None:
       try:
-         print "Reading configuration file [%s]" % (args.config)
-         parser = ConfigParser.SafeConfigParser()
+         print("Reading configuration file [%s]" % (args.config))
+         parser = configparser.SafeConfigParser()
          parser.read(args.config)
-         print "Configuration file successfully read"         
+         print("Configuration file successfully read")         
          try:
             baseOffset = parser.getint("configuration", "baseAddress")
             baseAddress = 0xD0
             if (baseOffset >= 0 and baseOffset < 32):
                baseAddress += baseOffset
-               print "Setting base address to %d  (MRBus address 0x%02X)" % (baseOffset, baseAddress)
+               print("Setting base address to %d  (MRBus address 0x%02X)" % (baseOffset, baseAddress))
          except:
             baseAddress = 0xD0
 
@@ -162,16 +162,16 @@ while 1:
             newSearchDelay = parser.getfloat("configuration", "searchDelay")
             if (newSearchDelay >= 0.01 and newSearchDelay < 1):
                searchDelay = newSearchDelay
-               print "Setting search delay to %f" % (baseOffset, baseAddress)
+               print("Setting search delay to %f" % (baseOffset, baseAddress))
             else:
-               print "Config search delay of %f is insane, setting to 0.08"
+               print("Config search delay of %f is insane, setting to 0.08")
                searchDelay = 0.08
          except:
             searchDelay = 0.08
 
          try:
             ptPktTimeout = parser.getint("configuration", "packetTimeout")
-            print "Setting packet timeout to %d milliseconds" % (ptPktTimeout)
+            print("Setting packet timeout to %d milliseconds" % (ptPktTimeout))
          except:
             ptPktTimeout = 4000
 
@@ -181,31 +181,30 @@ while 1:
             withrottleConnection = False
 
             if dccConnectionMode == "esu":
-               print "Setting connection to ESU WiFi"
+               print("Setting connection to ESU WiFi")
                operatingMode = "ESU"
                esuConnection = True
                bridgeTypeStr = "ESUENET"
             elif dccConnectionMode == "withrottle":
-               print "Setting connection to JMRI WiThrottle"
+               print("Setting connection to JMRI WiThrottle")
                operatingMode = "JMRI"
                withrottleConnection = True
                bridgeTypeStr = "JMRINET"
             elif dccConnectionMode == "lnwi":
-               print "Setting connection to Digitrax LNWI"
+               print("Setting connection to Digitrax LNWI")
                operatingMode = "LNWI"
                withrottleConnection = True
                bridgeTypeStr = "LNWINET"
                # LNWIs default to being 192.168.7.1 and port 12090 - no need to search
-               serverIP = "192.168.7.1"
                serverPort = 12090
             else:
-               print "Connection mode [%s] invalid, defaulting to ESU WiFi" % (dccConnectionMode) 
+               print("Connection mode [%s] invalid, defaulting to ESU WiFi" % (dccConnectionMode)) 
                operatingMode = "ESU"
                esuConnection = True
                bridgeTypeStr = "ESU*NET"
          except Exception as e:
-            print "Exception in setting connection mode, defaulting to ESU WiFi"
-            print e
+            print("Exception in setting connection mode, defaulting to ESU WiFi")
+            print(e)
             esuConnection = True
             withrottleConnection = False
             bridgeTypeStr = "ESU#NET"
@@ -213,20 +212,20 @@ while 1:
          try:
             serverIP = parser.get("configuration", "serverIP")
          except Exception as e:
-            print "Server IP not set by configuration file"
+            print("Server IP not set by configuration file")
             serverIP is None
 
          try:
             serverPort = int(parser.get("configuration", "serverPort"))
          except Exception as e:
-            print "Server Port not set by configuration file"
+            print("Server Port not set by configuration file")
             serverPort is None
             
          try:
             pingServerInt = parser.getint("configuration", "disableServerPing")
             if pingServerInt != 0:
               pingServer = False
-              print "Disabling dead server ping detection"
+              print("Disabling dead server ping detection")
          except:
             pingServer = False
 
@@ -234,7 +233,7 @@ while 1:
             pingServerInt = parser.getint("configuration", "enableServerPing")
             if pingServerInt != 0:
               pingServer = True
-              print "Enabling dead server ping detection"
+              print("Enabling dead server ping detection")
          except:
             pass
 
@@ -243,30 +242,30 @@ while 1:
             if 0 != int(parser.get("configuration", "useJMRIClock")):
                useJMRIClock = True
          except Exception as e:
-            print "Flag to use the JMRI clock is not in the configuration file"
+            print("Flag to use the JMRI clock is not in the configuration file")
             useJMRIClock = False
 
          try:
             webPort = int(parser.get("configuration", "webPort"))
          except Exception as e:
-            print "JMRI websocket Port not set by configuration file"
+            print("JMRI websocket Port not set by configuration file")
             webPort is None
 
          try:
             timeZoneOffset = int(parser.get("configuration", "timeZoneOffset"))
          except Exception as e:
-            print "JMRI timezone offset not set by configuration file"
+            print("JMRI timezone offset not set by configuration file")
             timeZoneOffset is None
 
       except Exception as e:
-         print "Yikes!  Exception reading configuration file"
-         print e
+         print("Yikes!  Exception reading configuration file")
+         print(e)
    
    if args.gitver is not None:
       try:
          gitvernum = int(args.gitver[0:6], 16)
          gitver = [ (gitvernum) & 0xFF, (gitvernum>>8) & 0xFF, (gitvernum >> 16) & 0xFF ]
-         print "Setting git version to 0x%06X - %02X%02X%02X" % (gitvernum, gitver[2], gitver[1], gitver[0])
+         print("Setting git version to 0x%06X - %02X%02X%02X" % (gitvernum, gitver[2], gitver[1], gitver[0]))
       except:
          gitver = [ 0x00, 0x00, 0x00 ]
 
@@ -275,19 +274,19 @@ while 1:
    if args.server_port is not None:
       serverPort = int(args.server_port)
 
-   print ""
-   print " ENDING CONFIG PHASE"
-   print "-----------------------------------------------"
-   print ""
-   print "-----------------------------------------------"
-   print " STARTING CONNECTION PHASE"
-   print ""
+   print("")
+   print(" ENDING CONFIG PHASE")
+   print("-----------------------------------------------")
+   print("")
+   print("-----------------------------------------------")
+   print(" STARTING CONNECTION PHASE")
+   print("")
 
    # Initialization loop - runs until both ESU and MRBus are connected
    while 1:
       try:
          throttles = { }
-         print "PT-BRIDGE: Looking for XBee / MRBus interface"
+         print("PT-BRIDGE: Looking for XBee / MRBus interface")
 
          if mrbee is not None:
             mrbee.disconnect()
@@ -302,11 +301,11 @@ while 1:
             xbeePort = netUtils.findXbeePort()
 
          if xbeePort is None:
-            print "PT-BRIDGE: No XBee found, waiting and retrying..."
+            print("PT-BRIDGE: No XBee found, waiting and retrying...")
             time.sleep(2)
             continue
          else:
-            print "PT-BRIDGE: Trying to start XBee / MRBus on port %s" % xbeePort
+            print("PT-BRIDGE: Trying to start XBee / MRBus on port %s" % xbeePort)
 
          mrbee = mrbus.mrbus(xbeePort, baseAddress, logall=True, logfile=sys.stdout, busType='mrbee')
 
@@ -320,7 +319,7 @@ while 1:
             o1,o2,o3,o4 = defaultIP.split('.')
             if (int(o1) == 127 and int(o2) == 0 and int(o3) == 0 and int(o4) == 1):
                # Crap, we don't have network yet
-               print "PT-BRIDGE: No network yet found"
+               print("PT-BRIDGE: No network yet found")
                mrbee.setXbeeLED('D6', True);
                mrbee.setXbeeLED('D8', True);
                time.sleep(0.5)
@@ -328,11 +327,13 @@ while 1:
                mrbee.setXbeeLED('D8', False);
                time.sleep(0.5)
             else:
-                print "PT-BRIDGE: Found network (%d.%d.%d.255)" % (int(o1), int(o2), int(o3))
+                print("PT-BRIDGE: Found network (%d.%d.%d.255)" % (int(o1), int(o2), int(o3)))
+                if withrottleConnection is True and operatingMode is "LNWI":
+                   serverIP = "%d.%d.%d.1" % (int(o1), int(o2), int(o3))
                 haveNetwork = True
 
          if esuConnection is True:
-            print "PT-BRIDGE: Looking for ESU CabControl command station"
+            print("PT-BRIDGE: Looking for ESU CabControl command station")
 
             if serverPort is None:
                serverPort = 15471  # Default for ESU
@@ -342,17 +343,17 @@ while 1:
                foundIP = serverFind(searchDelay, serverPort, mrbee)
 
             if foundIP is None:
-               print "PT-BRIDGE: No ESU command station found, waiting and retrying..."
+               print("PT-BRIDGE: No ESU command station found, waiting and retrying...")
                time.sleep(2)
                continue
 
-            print "PT-BRIDGE: Trying ESU command station connection"
+            print("PT-BRIDGE: Trying ESU command station connection")
             cmdStn = esu.ESUConnection()
             cmdStn.connect(foundIP, serverPort)
 
          elif withrottleConnection is True:
             
-            print "PT-BRIDGE: Looking for %s server" % (operatingMode)
+            print("PT-BRIDGE: Looking for %s server" % (operatingMode))
 
             if serverPort is None:
                serverPort = 12090  # Default for WiThrottle / LNWI
@@ -373,16 +374,16 @@ while 1:
                foundIP = serverFind(searchDelay, serverPort, mrbee)
 
             if foundIP is None:
-               print "PT-BRIDGE: No %s server found, waiting and retrying..." % (operatingMode)
+               print("PT-BRIDGE: No %s server found, waiting and retrying..." % (operatingMode))
                time.sleep(2)
                continue
 
-            print "PT-BRIDGE: Trying %s server connection" % (operatingMode)
+            print("PT-BRIDGE: Trying %s server connection" % (operatingMode))
             cmdStn = withrottle.WiThrottleConnection()
             cmdStn.connect(foundIP, serverPort, operatingMode)
             
             if useJMRIClock == True:
-               print "Instantiating JMRI websocket interface for clock retrieval on port %d" % webPort
+               print("Instantiating JMRI websocket interface for clock retrieval on port %d" % webPort)
                timeSource = JMRIClock.JMRIClock(timeZoneOffset)
                try:
                   timeSource.connect(foundIP, webPort)
@@ -390,7 +391,7 @@ while 1:
                   continue
 
          else:
-            print "PT-BRIDGE: No configured DCC system type - halting"
+            print("PT-BRIDGE: No configured DCC system type - halting")
             mrbee.setXbeeLED('D8', True);
             mrbee.setXbeeLED('D6', True);
             while True:
@@ -407,8 +408,8 @@ while 1:
             mrbee.disconnect()
          sys.exit()
       except Exception as e:
-         print "PT-BRIDGE: Connection phase exception!!!"
-         print e
+         print("PT-BRIDGE: Connection phase exception!!!")
+         print(e)
          exc_info = sys.exc_info()
          traceback.print_exception(*exc_info)
          time.sleep(2)
@@ -422,13 +423,13 @@ while 1:
    errorLightOn = False
    pktLightOn = False
 
-   print ""
-   print " ENDING CONNECTION PHASE"
-   print "-----------------------------------------------"
-   print ""
-   print "-----------------------------------------------"
-   print " STARTING RUN PHASE"
-   print ""
+   print("")
+   print(" ENDING CONNECTION PHASE")
+   print("-----------------------------------------------")
+   print("")
+   print("-----------------------------------------------")
+   print(" STARTING RUN PHASE")
+   print("")
    # Main Run Loop - runs until something weird happens
    while 1:
       try:
@@ -436,12 +437,12 @@ while 1:
          currentMillis = getMillis()
          
          if currentMillis > (lastErrorTime + 500) and errorLightOn:
-            print "Turning Error LED off"
+            print("Turning Error LED off")
             errorLightOn = False
             mrbee.setXbeeLED('D6', errorLightOn)
 
          if currentMillis > ( lastPktTime + 4000) and pktLightOn:
-            print "PT-BRIDGE: Turning ProtoThrottle received LED off"
+            print("PT-BRIDGE: Turning ProtoThrottle received LED off")
             pktLightOn = False
             mrbee.setXbeeLED('D7', pktLightOn)
 
@@ -456,7 +457,7 @@ while 1:
                  raise Exception("Server unreachable")
              
              lastPingTime = currentMillis
-             print "PT-BRIDGE: Ping command station successful"
+             print("PT-BRIDGE: Ping command station successful")
              
 
          pkt = mrbee.getpkt()
@@ -482,13 +483,13 @@ while 1:
 
          throttlesToDelete = [ ]
 
-         for (key,throttle) in throttles.iteritems():
+         for (key,throttle) in throttles.items():
             updateTime = throttle.getLastUpdateTime()
             if (updateTime + (1 * 60)) < currentTime:
-               print "Throttle address 0x%02X has timed out, removing" % key
+               print("Throttle address 0x%02X has timed out, removing" % key)
                throttles[key].disconnect(cmdStn)
                throttlesToDelete.append(key)
-               print "Throttle disconnected"
+               print("Throttle disconnected")
 
          for key in throttlesToDelete:
              del throttles[key]
@@ -497,7 +498,7 @@ while 1:
             continue
 
          if pkt.src == baseAddress:
-            print "Conflicting ProtoThrottle base station detected!!!\nTurning Error LED on\n"
+            print("Conflicting ProtoThrottle base station detected!!!\nTurning Error LED on\n")
             errorLightOn = True
             lastErrorTime = getMillis()
             mrbee.setXbeeLED('D6', errorLightOn)
@@ -515,7 +516,7 @@ while 1:
          
          lastPktTime = getMillis()
          if False == pktLightOn:
-            print "Turning ProtoThrottle packet received LED on"
+            print("Turning ProtoThrottle packet received LED on")
             pktLightOn = True
             mrbee.setXbeeLED('D7', pktLightOn)
 
@@ -533,8 +534,8 @@ while 1:
          sys.exit()
 
       except Exception as e:
-         print "Caught some sort of exception, restarting the whole thing"
-         print e
+         print("Caught some sort of exception, restarting the whole thing")
+         print(e)
          exc_info = sys.exc_info()
          traceback.print_exception(*exc_info)
          del exc_info         

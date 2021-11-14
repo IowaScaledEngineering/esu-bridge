@@ -56,25 +56,25 @@ class ESUConnection:
       """Connect this object to an ESU CabControl command station on the IP address specified."""
       if port is None:
          port = self.ESU_PORT
-      print "ESU Trying to connect to %s on port %d" % (ip, port)
+      print("ESU Trying to connect to %s on port %d" % (ip, port))
       try:
          self.conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
          self.conn.settimeout(0.5)
          self.conn.connect((ip, port))
          self.conn.settimeout(0.01)
-         print "ESU Command station connection succeeded"
+         print("ESU Command station connection succeeded")
          self.conn.settimeout(5)
       except:
-         print "ESU Command station connection failed"
+         print("ESU Command station connection failed")
       
    def disconnect(self):
       """Disconnect from the CabControl command station in a clean way."""
-      print "ESU Disconnecting"
+      print("ESU Disconnecting")
       try:
          self.conn.close()
-         print "ESU Command station connection closed successfully"
+         print("ESU Command station connection closed successfully")
       except:
-         print "ESU Command station connection closed with exception, ignoring"
+         print("ESU Command station connection closed with exception, ignoring")
       self.conn = None
       
    def esuTXRX(self, cmdStr, parseRE=None, resultKey=''):
@@ -83,7 +83,7 @@ class ESUConnection:
 
 
       self.conn.send(cmdStr)
-      print("ESU: Sent command [%s]" % (cmdStr))
+      print(("ESU: Sent command [%s]" % (cmdStr)))
 
       responseComplete = False
       responseStartFound = False
@@ -100,16 +100,16 @@ class ESUConnection:
             thisLine = lines[i]
             if not responseStartFound:
                if thisLine == ("<REPLY %s>" % (cmdStr)):
-                  print("ESU: Found start line - [%s]" % (thisLine))
+                  print(("ESU: Found start line - [%s]" % (thisLine)))
                   responseStartFound = True
                   commandResponse.append(thisLine)
                else:
-                  print("ESU: No start tag - throwing away line [%s]" % (thisLine))
+                  print(("ESU: No start tag - throwing away line [%s]" % (thisLine)))
             else:
-               print("Adding line to response [%s]" % (thisLine))
+               print(("Adding line to response [%s]" % (thisLine)))
                commandResponse.append(thisLine)
                if thisLine == "<END 0 (OK)>":
-                  print("Found end line [%s]" % (thisLine))
+                  print(("Found end line [%s]" % (thisLine)))
                   responseComplete = True
                
 
@@ -131,35 +131,35 @@ class ESUConnection:
             else:
                results[parsed.group(resultKey)] = parsed.groupdict()
          except:
-            print("ESU esuRXTX Line %d does not match regex\n  Line %d: [%s]" % (idx, idx, commandResponse[idx]))
+            print(("ESU esuRXTX Line %d does not match regex\n  Line %d: [%s]" % (idx, idx, commandResponse[idx])))
 
       return results
 
    def esuLocomotiveAdd(self, locoNum, locoName=""):
       """Internal function for adding a locomotive to the command station's object table."""
-      print "ESU: Adding locomotive address [%d]" % (int(locoNum))
+      print("ESU: Adding locomotive address [%d]" % (int(locoNum)))
       cmdStr = "create(10, addr[%d], append)" % ( int(locoNum))
       result = self.esuTXRX(cmdStr, self.RElocAdd)
-      print "ESU: Locomotive added at objID [%d]" % (result[0]['objID'])
+      print("ESU: Locomotive added at objID [%d]" % (result[0]['objID']))
       return int(result[0]['objID'])
 
    def locomotiveObjectGet(self, locoNum, cabID, isLongAddress):
       """Acquires and returns a handle that will be used to control a locomotive address."""
-      print("ESU: locomotiveObjectGet(%d, 0x%02X)" % (locoNum, cabID))
+      print(("ESU: locomotiveObjectGet(%d, 0x%02X)" % (locoNum, cabID)))
       
       cmdStr = "queryObjects(10,addr)"
       locoList = self.esuTXRX(cmdStr, self.REglobalList, 'locAddr')
       
       locAddr = "%d" % (int(locoNum))
       
-      if locAddr in locoList.keys():
+      if locAddr in list(locoList.keys()):
          objID = int(locoList[locAddr]['objID'])
-         print "ESU: Found locomotive %s at object %d" % (locAddr, objID)
+         print("ESU: Found locomotive %s at object %d" % (locAddr, objID))
          return objID
       else:
-         print "ESU: Need to add this locomotive"
+         print("ESU: Need to add this locomotive")
          objID = self.esuLocomotiveAdd(locoNum)
-         print "ESU: Added locomotive %s at object %d" % (locAddr, objID)
+         print("ESU: Added locomotive %s at object %d" % (locAddr, objID))
          return objID
          
    def locomotiveEmergencyStop(self, objID):
@@ -185,9 +185,9 @@ class ESUConnection:
          speed = 0
 
       cmdStr = "set(%d, speed[%d], dir[%d])" % (objID, speed, direction)
-      print "ESU: locomotiveSpeedSet(%d): set speed %d %s" % (objID, speed, ["FWD","REV"][direction])
+      print("ESU: locomotiveSpeedSet(%d): set speed %d %s" % (objID, speed, ["FWD","REV"][direction]))
       self.esuTXRX(cmdStr)
-      print "ESU: locomotiveSpeedSet complete"
+      print("ESU: locomotiveSpeedSet complete")
    
    def locomotiveFunctionSet(self, objID, funcNum, funcVal):
       """Sets or clears a function on a locomotive via a handle that has been previously acquired with locomotiveObjectGet().  
@@ -195,10 +195,10 @@ class ESUConnection:
       objID = int(objID)
       funcNum = int(funcNum)
       funcVal = int(funcVal)
-      print "ESU: object %d set function %d to %d" % (int(objID), funcNum, funcVal)
+      print("ESU: object %d set function %d to %d" % (int(objID), funcNum, funcVal))
       cmdStr = "set(%d, func[%d,%d])" % (objID, funcNum, funcVal)
       self.esuTXRX(cmdStr)
-      print "ESU: function set complete"
+      print("ESU: function set complete")
 
    def locomotiveFunctionDictSet(self, objID, funcDict):
       """Don't use this!  An effort to set multiple functions at a time that doesn't really work yet."""
@@ -213,14 +213,14 @@ class ESUConnection:
       cmdStr = "set(%d%s])" % (objID, funcStr)
       self.esuTXRX(cmdStr)
       
-      print "ESU locomotiveFunctionSet(%d): set func %d to %d" % (int(objID), funcNum, funcVal)
+      print("ESU locomotiveFunctionSet(%d): set func %d to %d" % (int(objID), funcNum, funcVal))
 
    def locomotiveDisconnect(self, objID):
-      print "ESU locomotiveDisconnect(%d): disconnect" % (int(objID))
+      print("ESU locomotiveDisconnect(%d): disconnect" % (int(objID)))
  
    def locomotiveFunctionsGet(self, objID):
-     print "ESU locomotiveFunctionsGet(%d)" % (int(objID))
-     print " ...isn't implemented yet\n"
+     print("ESU locomotiveFunctionsGet(%d)" % (int(objID)))
+     print(" ...isn't implemented yet\n")
      return [0] * 29
 
    def update(self):

@@ -82,17 +82,17 @@ class MRBusThrottle:
       if (addr != self.locAddr):
          self.locAddr = addr
          self.locObjID = cmdStn.locomotiveObjectGet(self.locAddr, self.throttleAddr, self.locAddrLong)
-         print "MRBusThrottle (0x%02X): Acquiring new locomotive %d - objID = %s" % (self.throttleAddr, self.locAddr, self.locObjID)
+         print("MRBusThrottle (0x%02X): Acquiring new locomotive %d - objID = %s" % (self.throttleAddr, self.locAddr, self.locObjID))
       
       # Only send ESTOP if we just moved into that state
       if estop != self.locEStop and estop == 1:
-         print "MRBusThrottle (0x%02X): Set ESTOP loco %d" % (self.throttleAddr, self.locAddr)
+         print("MRBusThrottle (0x%02X): Set ESTOP loco %d" % (self.throttleAddr, self.locAddr))
          cmdStn.locomotiveEmergencyStop(self.locObjID)
 
       self.locEStop = estop
 
       if self.locEStop != 1 and (speed != self.locSpeed or direction != self.locDirection):
-         print "MRBusThrottle (0x%02X): Set loco [%d] speed %d %s" % (self.throttleAddr, self.locAddr, speed, ["FWD","REV"][direction])
+         print("MRBusThrottle (0x%02X): Set loco [%d] speed %d %s" % (self.throttleAddr, self.locAddr, speed, ["FWD","REV"][direction]))
          cmdStn.locomotiveSpeedSet(self.locObjID, speed, direction)
 
       self.locSpeed = speed
@@ -103,10 +103,10 @@ class MRBusThrottle:
       if self.locFunctions is None:
          try:
             self.locFunctions = cmdStn.locomotiveFunctionsGet(self.locObjID)
-            print "MRBusThrottle (0x%02X): Got loco [%d] functions from cmd station" % (self.throttleAddr, self.locAddr)
-            print self.locFunctions
+            print("MRBusThrottle (0x%02X): Got loco [%d] functions from cmd station" % (self.throttleAddr, self.locAddr))
+            print(self.locFunctions)
          except Exception as e:
-            print "MRBusThrottle (0x%02X): Exception in locomotiveFunctionsGet() for loco [%d]" % (self.throttleAddr, self.locAddr)
+            print("MRBusThrottle (0x%02X): Exception in locomotiveFunctionsGet() for loco [%d]" % (self.throttleAddr, self.locAddr))
             self.locFunctions = [ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 ]
          
       functions = [ 0,0,0,0,0,0,0,0,0,0,
@@ -129,7 +129,7 @@ class MRBusThrottle:
 
       for i in range(29):
          if functions[i] != self.locFunctions[i]:
-            print "MRBusThrottle (0x%02X): Set loco [%d] function [%d] to [%d]" % (self.throttleAddr, self.locAddr, i, functions[i])
+            print("MRBusThrottle (0x%02X): Set loco [%d] function [%d] to [%d]" % (self.throttleAddr, self.locAddr, i, functions[i]))
             cmdStn.locomotiveFunctionSet(self.locObjID, i, functions[i])
 
       self.locFunctions = functions
