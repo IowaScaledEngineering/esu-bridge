@@ -328,7 +328,7 @@ while 1:
                time.sleep(0.5)
             else:
                 print("PT-BRIDGE: Found network (%d.%d.%d.255)" % (int(o1), int(o2), int(o3)))
-                if withrottleConnection is True and operatingMode is "LNWI":
+                if withrottleConnection is True and operatingMode == "LNWI":
                    serverIP = "%d.%d.%d.1" % (int(o1), int(o2), int(o3))
                 haveNetwork = True
 
@@ -359,7 +359,7 @@ while 1:
                serverPort = 12090  # Default for WiThrottle / LNWI
 
             # JMRI Fast Clocks only work with true JMRI
-            if operatingMode is not "JMRI":
+            if operatingMode != "JMRI":
                useJMRIClock = False
 
             if useJMRIClock is True:
