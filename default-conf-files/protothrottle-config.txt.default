@@ -30,3 +30,23 @@ packetTimeout = 4000
 #  Leave commented out for the default 15471 on ESU or 12090 on WiThrottle
 #serverPort = 12090
 
+# enableServerPing attempts to ping the server every 5 seconds to make sure it's
+#  still there.  This actually isn't a great idea for most scenarios, but there are
+#  cases where the code just doesn't notice network failures or dead connections
+#  Leave this at 0 unless you really know what you're doing
+enableServerPing = 0
+
+#######################
+# JMRI Fast Clock Configuration
+
+# UseJMRIClock is True or False depending on whether one wants to enable the fast
+# clock display of JMRI maintained clock values on the protothrottle display.
+#useJMRIClock = 1
+
+# webPort specifies the port used by JMRI web server.  This used to retrieve
+# the fastclock if enabled above with useJMRIClock = True
+#webPort = 12080
+
+# timeZoneOffset is the hours from UTC to set local time on the fast clock show on the display
+# JMRI sends time in UTC only.
+#timeZoneOffset = -4
