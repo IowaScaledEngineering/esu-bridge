@@ -179,10 +179,10 @@ class WiThrottleConnection:
       if cmdStr is not None:
          self.lastUpdate = time.time()
          print("%s TX: Sending [%s]" % (self.operatingMode, cmdStr[:-1]))
-         self.conn.sendall(cmdStr)
+         self.conn.sendall(str.encode(cmdStr))
          time.sleep(0.05)
       try:
-         self.recvData += self.conn.recv(self.WITHROTTLE_RCV_SZ)
+         self.recvData += self.conn.recv(self.WITHROTTLE_RCV_SZ).decode()
       except socket.timeout:
          pass
       self.parseIncomingData()

@@ -40,7 +40,7 @@ import traceback
 import socket
 import argparse
 import configparser
-
+import logging
 import esu
 import withrottle
 
@@ -299,7 +299,13 @@ while 1:
          else:
             print("PT-BRIDGE: Trying to start XBee / MRBus on port %s" % xbeePort)
 
-         mrbee = mrbus.mrbus(xbeePort, baseAddress, busType='mrbee')
+         logger = logging.getLogger()
+         logger.setLevel(logging.DEBUG)
+         handler = logging.StreamHandler(sys.stdout)
+         handler.setLevel(logging.DEBUG)
+         logger.addHandler(handler)
+
+         mrbee = mrbus.mrbus(xbeePort, baseAddress, logger=logger, busType='mrbee')
 
          mrbee.setXbeeLED('D9', True);
 
@@ -455,7 +461,7 @@ while 1:
          pkt = mrbee.getpkt()
 
          if time.time() > lastStatusTime + statusInterval:
-            #print "PT-BRIDGE: Sending status packet"
+#            print("PT-BRIDGE: Sending status packet")
             statusPacket = [ ord('v'), 0x80, gitver[2], gitver[1], gitver[0], 1, 0 ] + getInterfaceTypeByteArray(bridgeTypeStr)
             mrbee.sendpkt(0xFF, statusPacket)
             if operatingMode == "JMRI" and useJMRIClock == True: 
@@ -486,7 +492,7 @@ while 1:
          for key in throttlesToDelete:
              del throttles[key]
 
-         if pkt is None:
+         if pkt == None:
             continue
 
          if pkt.src == baseAddress:
@@ -495,6 +501,7 @@ while 1:
             lastErrorTime = getMillis()
             mrbee.setXbeeLED('D6', errorLightOn)
 
+
          # Bypass anything that doesn't look like a throttle packet
          if pkt.cmd != 0x53 or len(pkt.data) != 9 or baseAddress != pkt.dest:
             continue
@@ -502,9 +509,9 @@ while 1:
          # Create a MRBusThrottle object for every new Protothrottle that shows up
          if pkt.src not in throttles:
             throttles[pkt.src] = MRBusThrottle.MRBusThrottle(pkt.src)
-         #print "PT-BRIDGE: Processing packet from throttle %02X" % (pkt.src)
+#         print("PT-BRIDGE: Processing packet from throttle %02X" % (pkt.src))
          throttles[pkt.src].update(cmdStn, pkt)
-         #print "PT-BRIDGE: Done processing packet from throttle %02X" % (pkt.src)
+#         print("PT-BRIDGE: Done processing packet from throttle %02X" % (pkt.src))
          
          lastPktTime = getMillis()
          if False == pktLightOn:

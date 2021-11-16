@@ -82,7 +82,7 @@ class ESUConnection:
       # Flush connection buffer
 
 
-      self.conn.send(cmdStr)
+      self.conn.send(str.encode(cmdStr))
       print(("ESU: Sent command [%s]" % (cmdStr)))
 
       responseComplete = False
@@ -92,7 +92,7 @@ class ESUConnection:
             
       # Need to hold here until we get a full response or we timeout
       while not responseComplete:
-         resp = self.conn.recv(self.ESU_RCV_SZ)
+         resp = self.conn.recv(self.ESU_RCV_SZ).decode()
          # Find the response
          lines = resp.splitlines()
          numDataElements = len(lines)
@@ -140,7 +140,7 @@ class ESUConnection:
       print("ESU: Adding locomotive address [%d]" % (int(locoNum)))
       cmdStr = "create(10, addr[%d], append)" % ( int(locoNum))
       result = self.esuTXRX(cmdStr, self.RElocAdd)
-      print("ESU: Locomotive added at objID [%d]" % (result[0]['objID']))
+      print("ESU: Locomotive added at objID [%d]" % (int(result[0]['objID'])))
       return int(result[0]['objID'])
 
    def locomotiveObjectGet(self, locoNum, cabID, isLongAddress):

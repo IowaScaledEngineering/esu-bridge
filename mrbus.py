@@ -246,8 +246,11 @@ class mrbeeSimple(object):
        
        #incomingByte = ord(incomingStr[0])
        incomingByte = 0xFF & incomingStr[0]
+       
+       #self.logger.info("mrbee got byte [0x%02x]" % (incomingByte))
+
        if 0x7E == incomingByte:
-#          self.log(0, "mrbee starting new packet")
+          #self.logger.debug("mrbee starting new packet")
           self.rxBuffer = [ incomingByte ]
           self.rxExcapeNext = 0
           self.rxProcessing = 1 
@@ -255,7 +258,7 @@ class mrbeeSimple(object):
           continue
           
        elif 0x7D == incomingByte:
-#          self.log(0, "mrbee setting escape")
+#          self.logger.debug("mrbee setting escape")
           self.rxExcapeNext = 1
           continue
        
@@ -276,7 +279,7 @@ class mrbeeSimple(object):
              self.rxExpectedPktLen = self.rxBuffer[1] * 256 + self.rxBuffer[2] + 4
 
           if len(self.rxBuffer) == self.rxExpectedPktLen:
-#             self.log(0, "mrbee - think we may have a packet")                 
+             #self.logger.debug("mrbee - think we may have a packet")                 
              pktChecksum = 0
              for i in range(3, self.rxExpectedPktLen):
                 pktChecksum = (pktChecksum + self.rxBuffer[i]) & 0xFF
@@ -301,7 +304,8 @@ class mrbeeSimple(object):
 #                for i in range(0, self.rxExpectedPktLen-1):
 #                   print "Byte %02d: 0x%02X" % (i-pktDataOffset, self.rxBuffer[i])
              
-             return packet(self.rxBuffer[pktDataOffset + 0], self.rxBuffer[pktDataOffset + 1], self.rxBuffer[pktDataOffset + 5], self.rxBuffer[(pktDataOffset + 6):-1])
+             pkt = packet(self.rxBuffer[pktDataOffset + 0], self.rxBuffer[pktDataOffset + 1], self.rxBuffer[pktDataOffset + 5], self.rxBuffer[(pktDataOffset + 6):-1])
+             return pkt
 
     return None
 
