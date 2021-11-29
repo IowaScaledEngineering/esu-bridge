@@ -51,6 +51,7 @@ enableServerPing = 0
 # JMRI sends time in UTC only.
 #timeZoneOffset = -4
 
-# Setting use12hJMRITime to 1 will cause time to be displayed as 12h (AM/PM)
-# rather than 24h format
-#use12hJMRITime = 1
+# Setting displayTime12h to 1 will cause time to be displayed as 12h (AM/PM)
+# rather than 24h format (default)
+#displayTime12h = 1
+

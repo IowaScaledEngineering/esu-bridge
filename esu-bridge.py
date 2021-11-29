@@ -80,7 +80,7 @@ pingServer = False
 useJMRIClock = False
 webPort = None
 timeZoneOffset = None
-use12hJMRITime = False
+displayTime12h = False
 
 def getMillis():
    return time.time() * 1000.0
@@ -250,11 +250,11 @@ while 1:
             timeZoneOffset is None
 
          try:
-            if 0 != int(parser.get("configuration", "use12hJMRITime")):
-               use12hJMRITime = True
+            if 0 != int(parser.get("configuration", "displayTime12h")):
+               displayTime12h = True
          except Exception as e:
             print("JMRI 12h option not specified in config file")
-            use12hJMRITime = False
+            displayTime12h = False
 
 
       except Exception as e:
@@ -479,7 +479,7 @@ while 1:
 #               print "JMRI timeSource reports hrs=%d, min=%d" % (hrs, min)
                if ( hrs >= 0 and hrs < 24 and mins >= 0 and mins < 60 ):
                   timeFlags = 0x01   # Display fast time
-                  if use12hJMRITime:
+                  if displayTime12h:
                      timeFlags |= 0x08 # display fast time in AMPM
                      
                   timePacket = [ ord('T'), 0, 0, 0, timeFlags, hrs, mins, 0, 0, 0, 0 ,0 ,0 ]
