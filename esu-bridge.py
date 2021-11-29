@@ -80,7 +80,7 @@ pingServer = False
 useJMRIClock = False
 webPort = None
 timeZoneOffset = None
-
+use12hJMRITime = False
 
 def getMillis():
    return time.time() * 1000.0
@@ -232,7 +232,7 @@ while 1:
 
          try:
             if 0 != int(parser.get("configuration", "useJMRIClock")):
-               useJMRIClock = True
+              useJMRIClock = True
          except Exception as e:
             print("Flag to use the JMRI clock is not in the configuration file")
             useJMRIClock = False
@@ -248,6 +248,14 @@ while 1:
          except Exception as e:
             print("JMRI timezone offset not set by configuration file")
             timeZoneOffset is None
+
+         try:
+            if 0 != int(parser.get("configuration", "use12hJMRITime")):
+               use12hJMRITime = True
+         except Exception as e:
+            print("JMRI 12h option not specified in config file")
+            use12hJMRITime = False
+
 
       except Exception as e:
          print("Yikes!  Exception reading configuration file")
@@ -470,7 +478,11 @@ while 1:
                
 #               print "JMRI timeSource reports hrs=%d, min=%d" % (hrs, min)
                if ( hrs >= 0 and hrs < 24 and mins >= 0 and mins < 60 ):
-                  timePacket = [ ord('T'), 0, 0, 0, 1, hrs, mins, 0, 0, 0, 0 ,0 ,0 ]
+                  timeFlags = 0x01   # Display fast time
+                  if use12hJMRITime:
+                     timeFlags |= 0x08 # display fast time in AMPM
+                     
+                  timePacket = [ ord('T'), 0, 0, 0, timeFlags, hrs, mins, 0, 0, 0, 0 ,0 ,0 ]
                   mrbee.sendpkt(0xFF, timePacket)
 
             lastStatusTime = time.time()

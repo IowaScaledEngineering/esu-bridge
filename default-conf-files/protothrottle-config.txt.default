@@ -50,3 +50,7 @@ enableServerPing = 0
 # timeZoneOffset is the hours from UTC to set local time on the fast clock show on the display
 # JMRI sends time in UTC only.
 #timeZoneOffset = -4
+
+# Setting use12hJMRITime to 1 will cause time to be displayed as 12h (AM/PM)
+# rather than 24h format
+#use12hJMRITime = 1
